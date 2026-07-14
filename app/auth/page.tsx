@@ -118,7 +118,9 @@ function Auth() {
     setIsCheckingUsername(true)
     setUsernameAvailable(null)
     try {
-      const res = await fetch(`/api/auth/check-username?username=${uname}`)
+      const res = await fetch(
+        `/api/auth/check-username?username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`
+      )
       const { available } = await res.json()
       setUsernameAvailable(available)
     } catch (error) {
@@ -471,7 +473,9 @@ function Auth() {
                     placeholder="m@example.com"
                     className="pl-10"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                    onChange={(e) =>
+                      setEmail(e.target.value.replace(/\s/g, "").toLowerCase())
+                    }
                     onKeyDown={handleKeyDown(
                       handleContinueFromEmail,
                       isEmailInvalid
@@ -529,7 +533,13 @@ function Auth() {
                   <AtSign className="absolute left-3 size-5 text-muted-foreground" />
                   <Input
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    onChange={(e) =>
+                      setUsername(
+                        e.target.value
+                          .replace(/[^a-zA-Z0-9]/g, "")
+                          .toLowerCase()
+                      )
+                    }
                     id="username"
                     placeholder="johndoe"
                     className="pr-10 pl-10"
@@ -654,7 +664,10 @@ function Auth() {
                 className="w-full"
                 onClick={handleNextFromSignup}
                 disabled={
-                  isSignupInvalid || isLoading || usernameAvailable === false
+                  isSignupInvalid ||
+                  isLoading ||
+                  isCheckingUsername ||
+                  usernameAvailable !== true
                 }
               >
                 {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
