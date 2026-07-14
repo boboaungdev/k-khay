@@ -103,28 +103,38 @@ function Auth() {
     return () => clearInterval(interval)
   }, [isCountingDown, countdown])
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     // TODO: Implement actual code resend logic here
     setIsCountingDown(true)
   }
 
-  const handleContinueFromEmail = () => {
+  const handleContinueFromEmail = async () => {
     const result = emailSchema.safeParse({ email })
     if (!result.success) {
       setErrors(result.error.flatten().fieldErrors)
       return
     }
     setErrors({})
-    const data = encodeURIComponent(
-      JSON.stringify({
-        email,
-        step: "signin",
+
+    try {
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       })
-    )
-    router.push(`${pathname}?data=${data}`)
+
+      const { exists } = await res.json()
+      const nextStep = exists ? "signin" : "signup"
+
+      const data = encodeURIComponent(JSON.stringify({ email, step: nextStep }))
+      router.push(`${pathname}?data=${data}`)
+    } catch (error) {
+      console.error("Failed to check email", error)
+      setErrors({ root: ["Failed to connect to the server."] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    }
   }
 
-  const handleNextFromSignup = () => {
+  const handleNextFromSignup = async () => {
     const result = signupSchema.safeParse({
       name,
       username,
@@ -136,10 +146,28 @@ function Auth() {
       return
     }
     setErrors({})
-    const data = encodeURIComponent(
-      JSON.stringify({ email, name, username, step: "verify-email" })
-    )
-    router.push(`${pathname}?data=${data}`)
+
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name, username, password }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        setErrors({ root: [body.error || "Signup failed"] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        return
+      }
+
+      const data = encodeURIComponent(
+        JSON.stringify({ email, name, username, step: "verify-email" })
+      )
+      router.push(`${pathname}?data=${data}`)
+    } catch (error) {
+      console.error("Signup error", error)
+      setErrors({ root: ["Failed to connect to the server."] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    }
   }
 
   const handleVerifyOtp = () => {
@@ -202,6 +230,11 @@ function Auth() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {errors.root && (
+            <p className="mb-4 text-center text-sm text-red-500">
+              {errors.root[0]}
+            </p>
+          )}
           {step === "email" ? (
             <div className="grid gap-4">
               <Button
