@@ -1,6 +1,8 @@
 import Link from "next/link"
-import { Logo } from "./logo"
+import Image from "next/image"
 import { ThemeToggle } from "./theme-toggle"
+import { APP_INFO } from "@/constatnts"
+import AppName from "./app-name"
 
 export function Navbar() {
   return (
@@ -8,11 +10,16 @@ export function Navbar() {
       <div className="container flex h-14 items-center">
         <div className="flex flex-1 items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
-            <Logo />
+            <Image
+              src="/logo.png"
+              alt={`${APP_INFO.appName} logo`}
+              width={72}
+              height={72}
+            />
             <div className="flex flex-col">
-              <span className="font-bold sm:inline-block">k-khay</span>
+              <AppName />
               <span className="hidden text-xs text-muted-foreground md:inline-block">
-                Your App Tagline
+                {APP_INFO.appTagLine}
               </span>
             </div>
           </Link>
