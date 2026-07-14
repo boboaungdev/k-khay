@@ -32,7 +32,9 @@ import {
   User,
 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Suspense } from "react"
+import { Suspense, useMemo, KeyboardEvent } from "react"
+import { z } from "zod"
+import { emailSchema, otpSchema, signupSchema } from "./schema"
 
 function Auth() {
   const router = useRouter()
@@ -53,6 +55,23 @@ function Auth() {
   const [otp, setOtp] = useState("")
   const [countdown, setCountdown] = useState(59)
   const [isCountingDown, setIsCountingDown] = useState(false)
+  const [errors, setErrors] = useState<z.ZodError["formErrors"]["fieldErrors"]>(
+    {}
+  )
+
+  const isEmailInvalid = useMemo(
+    () => !emailSchema.safeParse({ email }).success,
+    [email]
+  )
+  const isSignupInvalid = useMemo(
+    () =>
+      !signupSchema.safeParse({ name, username, password, rePassword }).success,
+    [name, username, password, rePassword]
+  )
+  const isOtpInvalid = useMemo(
+    () => !otpSchema.safeParse({ otp }).success,
+    [otp]
+  )
 
   useEffect(() => {
     const data = searchParams.get("data")
@@ -85,6 +104,58 @@ function Auth() {
     setIsCountingDown(true)
   }
 
+  const handleContinueFromEmail = () => {
+    const result = emailSchema.safeParse({ email })
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
+    const data = encodeURIComponent(
+      JSON.stringify({
+        email,
+        step: "signup",
+      })
+    )
+    router.push(`${pathname}?data=${data}`)
+  }
+
+  const handleNextFromSignup = () => {
+    const result = signupSchema.safeParse({
+      name,
+      username,
+      password,
+      rePassword,
+    })
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
+    const data = encodeURIComponent(
+      JSON.stringify({ email, name, username, step: "verify-email" })
+    )
+    router.push(`${pathname}?data=${data}`)
+  }
+
+  const handleVerifyOtp = () => {
+    const result = otpSchema.safeParse({ otp })
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
+    // TODO: Implement actual OTP verification logic here
+    console.log("OTP verified:", otp)
+  }
+
+  const handleKeyDown =
+    (handler: () => void, isInvalid: boolean) =>
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" && !isInvalid) {
+        handler()
+      }
+    }
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-6 p-4">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -151,20 +222,20 @@ function Auth() {
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={handleKeyDown(
+                      handleContinueFromEmail,
+                      isEmailInvalid
+                    )}
                   />
                 </div>
+                {errors.email && (
+                  <p className="text-xs text-red-500">{errors.email[0]}</p>
+                )}
               </div>
               <Button
                 className="w-full"
-                onClick={() => {
-                  const data = encodeURIComponent(
-                    JSON.stringify({
-                      email,
-                      step: "signup",
-                    })
-                  )
-                  router.push(`${pathname}?data=${data}`)
-                }}
+                onClick={handleContinueFromEmail}
+                disabled={isEmailInvalid}
               >
                 Continue
               </Button>
@@ -190,6 +261,14 @@ function Auth() {
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
+                {name && signupSchema.shape.name.safeParse(name).error && (
+                  <p className="text-xs text-muted-foreground">
+                    Name must be at least 2 characters.
+                  </p>
+                )}
+                {errors.name && (
+                  <p className="text-xs text-red-500">{errors.name[0]}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="username">Username</Label>
@@ -197,12 +276,22 @@ function Auth() {
                   <AtSign className="absolute left-3 size-5 text-muted-foreground" />
                   <Input
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
                     id="username"
                     placeholder="johndoe"
                     className="pl-10"
                   />
                 </div>
+                {username &&
+                  signupSchema.shape.username.safeParse(username).error && (
+                    <p className="text-xs text-muted-foreground">
+                      Username must be at least 6 characters and can only
+                      contain letters and numbers.
+                    </p>
+                  )}
+                {errors.username && (
+                  <p className="text-xs text-red-500">{errors.username[0]}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
@@ -229,6 +318,15 @@ function Auth() {
                     </div>
                   )}
                 </div>
+                {password &&
+                  signupSchema.shape.password.safeParse(password).error && (
+                    <p className="text-xs text-muted-foreground">
+                      Password must be at least 8 characters.
+                    </p>
+                  )}
+                {errors.password && (
+                  <p className="text-xs text-red-500">{errors.password[0]}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="re-password">Confirm Password</Label>
@@ -241,6 +339,10 @@ function Auth() {
                     placeholder="confirm password"
                     value={rePassword}
                     onChange={(e) => setRePassword(e.target.value)}
+                    onKeyDown={handleKeyDown(
+                      handleNextFromSignup,
+                      isSignupInvalid
+                    )}
                   />
                   {rePassword && (
                     <div
@@ -255,20 +357,22 @@ function Auth() {
                     </div>
                   )}
                 </div>
+                {rePassword &&
+                  signupSchema
+                    .safeParse({ name, username, password, rePassword })
+                    .error?.flatten().fieldErrors.rePassword && (
+                    <p className="text-xs text-muted-foreground">
+                      Passwords must match.
+                    </p>
+                  )}
+                {errors.rePassword && (
+                  <p className="text-xs text-red-500">{errors.rePassword[0]}</p>
+                )}
               </div>
               <Button
                 className="w-full"
-                onClick={() => {
-                  const data = encodeURIComponent(
-                    JSON.stringify({
-                      email,
-                      name,
-                      username,
-                      step: "verify-email",
-                    })
-                  )
-                  router.push(`${pathname}?data=${data}`)
-                }}
+                onClick={handleNextFromSignup}
+                disabled={isSignupInvalid}
               >
                 Next
               </Button>
@@ -301,6 +405,7 @@ function Auth() {
                   maxLength={6}
                   value={otp}
                   onChange={(value) => setOtp(value)}
+                  onComplete={handleVerifyOtp}
                 >
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
@@ -315,7 +420,18 @@ function Auth() {
                   </InputOTPGroup>
                 </InputOTP>
               </div>
-              <Button className="w-full">Verify</Button>
+              {errors.otp && (
+                <p className="text-center text-xs text-red-500">
+                  {errors.otp[0]}
+                </p>
+              )}
+              <Button
+                className="w-full"
+                onClick={handleVerifyOtp}
+                disabled={isOtpInvalid}
+              >
+                Verify
+              </Button>
               <div className="flex items-center justify-between">
                 <Button
                   variant="link"
