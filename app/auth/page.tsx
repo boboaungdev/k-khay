@@ -34,7 +34,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useMemo, KeyboardEvent } from "react"
 import { z } from "zod"
-import { emailSchema, otpSchema, signupSchema } from "./schema"
+import { emailSchema, otpSchema, signinSchema, signupSchema } from "./schema"
 
 function Auth() {
   const router = useRouter()
@@ -71,6 +71,10 @@ function Auth() {
   const isOtpInvalid = useMemo(
     () => !otpSchema.safeParse({ otp }).success,
     [otp]
+  )
+  const isSigninInvalid = useMemo(
+    () => !signinSchema.safeParse({ email, password }).success,
+    [email, password]
   )
 
   useEffect(() => {
@@ -114,7 +118,7 @@ function Auth() {
     const data = encodeURIComponent(
       JSON.stringify({
         email,
-        step: "signup",
+        step: "signin",
       })
     )
     router.push(`${pathname}?data=${data}`)
@@ -149,6 +153,17 @@ function Auth() {
     console.log("OTP verified:", otp)
   }
 
+  const handleSignin = () => {
+    const result = signinSchema.safeParse({ email, password })
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
+    // TODO: Implement actual signin logic here
+    console.log("Signing in with:", result.data)
+  }
+
   const handleKeyDown =
     (handler: () => void, isInvalid: boolean) =>
     (e: KeyboardEvent<HTMLInputElement>) => {
@@ -176,11 +191,13 @@ function Auth() {
           <CardTitle>
             {step === "email" && "Welcome"}
             {step === "signup" && "Sign Up"}
+            {step === "signin" && "Welcome Back"}
             {step === "verify-email" && "Verify your email"}
           </CardTitle>
           <CardDescription>
             {step === "email" && "Contine with OAuth or Email"}
             {step === "signup" && "Create your account to continue"}
+            {step === "signin" && "Sign in to your account to continue"}
             {step === "verify-email" && `We sent a code to ${email}`}
           </CardDescription>
         </CardHeader>
@@ -221,7 +238,7 @@ function Auth() {
                     placeholder="m@example.com"
                     className="pl-10"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
                     onKeyDown={handleKeyDown(
                       handleContinueFromEmail,
                       isEmailInvalid
@@ -386,6 +403,70 @@ function Auth() {
                         email,
                         name,
                         username,
+                        step: "email",
+                      })
+                    )}`
+                  )
+                }
+              >
+                <ChevronLeft className="size-4" />
+                <span>Back</span>
+              </Button>
+            </div>
+          ) : step === "signin" ? (
+            // TODO: Implement signin logic
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative flex items-center">
+                  <Mail className="absolute left-3 size-5 text-muted-foreground" />
+                  <Input id="email" value={email} className="pl-10" disabled />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3 size-5 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="password"
+                    className="pr-10 pl-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={handleKeyDown(handleSignin, isSigninInvalid)}
+                  />
+                  {password && (
+                    <div
+                      className="absolute right-3 cursor-pointer"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-5 text-muted-foreground" />
+                      ) : (
+                        <Eye className="size-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.password && (
+                  <p className="text-xs text-red-500">{errors.password[0]}</p>
+                )}
+              </div>
+              <Button
+                className="w-full"
+                onClick={handleSignin}
+                disabled={isSigninInvalid}
+              >
+                Continue
+              </Button>
+              <Button
+                variant="link"
+                className="w-fit gap-1 self-start px-0 text-muted-foreground"
+                onClick={() =>
+                  router.push(
+                    `${pathname}?data=${encodeURIComponent(
+                      JSON.stringify({
                         step: "email",
                       })
                     )}`

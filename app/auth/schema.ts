@@ -1,7 +1,10 @@
 import { z } from "zod"
 
 export const emailSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
+  email: z
+    .string()
+    .email({ message: "Please enter a valid email address." })
+    .transform((val) => val.toLowerCase()),
 })
 
 export const signupSchema = z
@@ -26,4 +29,12 @@ export const signupSchema = z
 
 export const otpSchema = z.object({
   otp: z.string().min(6, { message: "Verification code must be 6 digits." }),
+})
+
+export const signinSchema = z.object({
+  email: z
+    .string()
+    .email({ message: "Please enter a valid email address." })
+    .transform((val) => val.toLowerCase()),
+  password: z.string().min(1, { message: "Password is required." }),
 })
