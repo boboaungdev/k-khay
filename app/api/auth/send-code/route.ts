@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { transporter } from "@/lib/mail"
-import { SMTP } from "@/constatnts"
+import { APP_INFO, SMTP } from "@/constatnts"
 
 export async function POST(req: Request) {
   try {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     await transporter.sendMail({
       from: SMTP.SMTP_EMAIL_FROM,
       to: email,
-      subject: "Verify your email",
+      subject: `[${APP_INFO.appName}] Verify your email`,
       html: `
         <h2>Email Verification</h2>
         <p>Your verification code:</p>
