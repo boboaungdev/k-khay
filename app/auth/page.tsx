@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/input-otp"
 import { Label } from "@/components/ui/label"
 import { APP_INFO } from "@/constatnts"
-import {  useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { FcGoogle } from "react-icons/fc"
 import { FaGithub } from "react-icons/fa"
 import {
@@ -32,8 +32,9 @@ import {
   User,
 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 
-export default function AuthPage() {
+function Auth() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -351,5 +352,13 @@ export default function AuthPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense>
+      <Auth />
+    </Suspense>
   )
 }
