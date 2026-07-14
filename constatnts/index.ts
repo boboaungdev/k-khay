@@ -1,4 +1,4 @@
 export const APP_INFO = {
   appName: "K Khay",
-  appTagLine:'K Khay ECO Services'
+  appTagLine: "Explore the World",
 } as const

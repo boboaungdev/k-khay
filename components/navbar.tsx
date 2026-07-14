@@ -30,13 +30,6 @@ const services = [
   { name: "Domain", href: "/services/domain", icon: Globe },
 ]
 
-interface ServiceItemProps {
-  href: string
-  name: string
-  icon: React.ElementType
-  children: React.ReactNode
-}
-
 export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -46,8 +39,9 @@ export function Navbar() {
             <Image
               src="/logo.png"
               alt={`${APP_INFO.appName} logo`}
-              width={72}
-              height={72}
+              width={60}
+              height={60}
+              loading="eager"
             />
             <div className="flex flex-col">
               <AppName />
@@ -59,11 +53,11 @@ export function Navbar() {
           <nav className="flex items-center space-x-6 text-sm font-medium">
             <ThemeToggle />
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <LayoutGrid className="h-5 w-5" />
-                  <span className="sr-only">Services</span>
-                </Button>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon" />}
+              >
+                <LayoutGrid className="h-5 w-5" />
+                <span className="sr-only">Services</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64 p-2">
                 <DropdownMenuGroup>
