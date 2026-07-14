@@ -35,6 +35,13 @@ export async function POST(req: Request) {
       )
     }
 
+    if (!user.password) {
+      return NextResponse.json(
+        { error: "This account uses OAuth login" },
+        { status: 400 }
+      )
+    }
+
     const passwordMatch = await bcrypt.compare(password, user.password)
 
     if (!passwordMatch) {
