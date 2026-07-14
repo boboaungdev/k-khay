@@ -271,7 +271,7 @@ function Auth() {
       useAuthStore.getState().setUser(data.user)
 
       // Example: redirect after verification
-      router.replace("/dashboard")
+      router.replace("/account")
     } catch (error) {
       console.error("OTP verification error:", error)
 
@@ -316,7 +316,7 @@ function Auth() {
 
       useAuthStore.getState().setUser(data.user)
 
-      router.replace("/dashboard")
+      router.replace("/account")
     } catch (error) {
       console.error(error)
 

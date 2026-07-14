@@ -50,7 +50,7 @@ export function Navbar() {
               </span>
             </div>
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
+          <nav className="flex items-center space-x-4 text-sm font-medium">
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger
