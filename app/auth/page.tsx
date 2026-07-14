@@ -31,6 +31,7 @@ import {
   Mail,
   User,
 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useMemo, KeyboardEvent } from "react"
 import { z } from "zod"
@@ -58,6 +59,7 @@ function Auth() {
   const [errors, setErrors] = useState<z.ZodError["formErrors"]["fieldErrors"]>(
     {}
   )
+  const [isLoading, setIsLoading] = useState(false)
 
   const isEmailInvalid = useMemo(
     () => !emailSchema.safeParse({ email }).success,
@@ -104,8 +106,37 @@ function Auth() {
   }, [isCountingDown, countdown])
 
   const handleResendCode = async () => {
-    // TODO: Implement actual code resend logic here
-    setIsCountingDown(true)
+    try {
+      const res = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrors({
+          root: [data.error || "Failed to resend code"],
+        } as any)
+
+        return
+      }
+
+      setOtp("")
+      setCountdown(59)
+      setIsCountingDown(true)
+    } catch (error) {
+      console.error(error)
+
+      setErrors({
+        root: ["Failed to connect to server"],
+      } as any)
+    }
   }
 
   const handleContinueFromEmail = async () => {
@@ -115,6 +146,7 @@ function Auth() {
       return
     }
     setErrors({})
+    setIsLoading(true)
 
     try {
       const res = await fetch("/api/auth/check-email", {
@@ -131,6 +163,8 @@ function Auth() {
     } catch (error) {
       console.error("Failed to check email", error)
       setErrors({ root: ["Failed to connect to the server."] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -146,6 +180,7 @@ function Auth() {
       return
     }
     setErrors({})
+    setIsLoading(true)
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -156,40 +191,133 @@ function Auth() {
 
       if (!res.ok) {
         const body = await res.json()
+        setIsLoading(false)
         setErrors({ root: [body.error || "Signup failed"] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         return
       }
 
+      const codeRes = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      })
+
+      if (!codeRes.ok) {
+        throw new Error("Failed sending code")
+      }
+
       const data = encodeURIComponent(
-        JSON.stringify({ email, name, username, step: "verify-email" })
+        JSON.stringify({
+          email,
+          name,
+          username,
+          step: "verify-email",
+        })
       )
+
       router.push(`${pathname}?data=${data}`)
     } catch (error) {
       console.error("Signup error", error)
       setErrors({ root: ["Failed to connect to the server."] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     const result = otpSchema.safeParse({ otp })
-    if (!result.success) {
-      setErrors(result.error.flatten().fieldErrors)
-      return
-    }
-    setErrors({})
-    // TODO: Implement actual OTP verification logic here
-    console.log("OTP verified:", otp)
-  }
 
-  const handleSignin = () => {
-    const result = signinSchema.safeParse({ email, password })
     if (!result.success) {
       setErrors(result.error.flatten().fieldErrors)
       return
     }
+
     setErrors({})
-    // TODO: Implement actual signin logic here
-    console.log("Signing in with:", result.data)
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("/api/auth/verify-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          code: otp,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrors({
+          root: [data.error || "Verification failed"],
+        } as any)
+
+        return
+      }
+
+      // Success
+      console.log("Email verified")
+
+      // Example: redirect after verification
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("OTP verification error:", error)
+
+      setErrors({
+        root: ["Failed to connect to server"],
+      } as any)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  const handleSignin = async () => {
+    const result = signinSchema.safeParse({ email, password })
+
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors)
+      return
+    }
+
+    setErrors({})
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrors({
+          root: [data.error],
+        } as any)
+        return
+      }
+
+      router.push("/dashboard")
+    } catch (error) {
+      console.error(error)
+
+      setErrors({
+        root: ["Failed to connect to server"],
+      } as any)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleKeyDown =
@@ -285,9 +413,10 @@ function Auth() {
               <Button
                 className="w-full"
                 onClick={handleContinueFromEmail}
-                disabled={isEmailInvalid}
+                disabled={isEmailInvalid || isLoading}
               >
-                Continue
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isLoading ? "Please wait" : "Continue"}
               </Button>
             </div>
           ) : step === "signup" ? (
@@ -422,25 +551,25 @@ function Auth() {
               <Button
                 className="w-full"
                 onClick={handleNextFromSignup}
-                disabled={isSignupInvalid}
+                disabled={isSignupInvalid || isLoading}
               >
-                Next
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isLoading ? "Creating account..." : "Next"}
               </Button>
               <Button
                 variant="link"
                 className="w-fit gap-1 self-start px-0 text-muted-foreground"
-                onClick={() =>
-                  router.push(
-                    `${pathname}?data=${encodeURIComponent(
-                      JSON.stringify({
-                        email,
-                        name,
-                        username,
-                        step: "email",
-                      })
-                    )}`
+                onClick={() => {
+                  setName("")
+                  setUsername("")
+                  setPassword("")
+                  setRePassword("")
+                  setErrors({})
+                  const data = encodeURIComponent(
+                    JSON.stringify({ step: "email" })
                   )
-                }
+                  router.push(`${pathname}?data=${data}`)
+                }}
               >
                 <ChevronLeft className="size-4" />
                 <span>Back</span>
@@ -489,22 +618,22 @@ function Auth() {
               <Button
                 className="w-full"
                 onClick={handleSignin}
-                disabled={isSigninInvalid}
+                disabled={isSigninInvalid || isLoading}
               >
-                Continue
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isLoading ? "Signing in..." : "Sign In"}
               </Button>
               <Button
                 variant="link"
                 className="w-fit gap-1 self-start px-0 text-muted-foreground"
-                onClick={() =>
-                  router.push(
-                    `${pathname}?data=${encodeURIComponent(
-                      JSON.stringify({
-                        step: "email",
-                      })
-                    )}`
+                onClick={() => {
+                  setPassword("")
+                  setErrors({})
+                  const data = encodeURIComponent(
+                    JSON.stringify({ step: "email" })
                   )
-                }
+                  router.push(`${pathname}?data=${data}`)
+                }}
               >
                 <ChevronLeft className="size-4" />
                 <span>Back</span>
@@ -542,26 +671,23 @@ function Auth() {
               <Button
                 className="w-full"
                 onClick={handleVerifyOtp}
-                disabled={isOtpInvalid}
+                disabled={isOtpInvalid || isLoading}
               >
-                Verify
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isLoading ? "Verifying..." : "Verify"}
               </Button>
               <div className="flex items-center justify-between">
                 <Button
                   variant="link"
                   className="w-fit gap-1 self-start px-0 text-muted-foreground"
-                  onClick={() =>
-                    router.push(
-                      `${pathname}?data=${encodeURIComponent(
-                        JSON.stringify({
-                          email,
-                          name,
-                          username,
-                          step: "signup",
-                        })
-                      )}`
+                  onClick={() => {
+                    setOtp("")
+                    setErrors({})
+                    const data = encodeURIComponent(
+                      JSON.stringify({ email, name, username, step: "signup" })
                     )
-                  }
+                    router.push(`${pathname}?data=${data}`)
+                  }}
                 >
                   <ChevronLeft className="size-4" />
                   <span>Back</span>
