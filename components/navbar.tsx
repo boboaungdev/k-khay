@@ -82,7 +82,7 @@ export function Navbar() {
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Link href="/get-started">
+            <Link href="/auth">
               <Button>Get Started</Button>
             </Link>
           </nav>
