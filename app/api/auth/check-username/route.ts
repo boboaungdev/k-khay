@@ -5,16 +5,18 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
 
-    const email = searchParams.get("email")?.toLowerCase()
+    const username = searchParams.get("username")?.toLowerCase()
 
-    if (!email) {
-      return NextResponse.json({ error: "Email required" }, { status: 400 })
+    if (!username) {
+      return NextResponse.json(
+        { error: "Username is required" },
+        { status: 400 }
+      )
     }
 
-    const user = await prisma.user.findFirst({
+    const user = await prisma.user.findUnique({
       where: {
-        email,
-        emailVerified: true,
+        username,
       },
       select: {
         id: true,
@@ -22,10 +24,10 @@ export async function GET(req: Request) {
     })
 
     return NextResponse.json({
-      exists: !!user,
+      available: !user,
     })
   } catch (error) {
-    console.error(error)
+    console.error("Check username error:", error)
 
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }

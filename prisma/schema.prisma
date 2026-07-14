@@ -32,6 +32,7 @@ model User {
   password      String?
   emailVerified Boolean   @default(false)
   accounts      Account[]
+  avatar        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

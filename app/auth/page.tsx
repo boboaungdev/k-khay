@@ -29,12 +29,13 @@ import {
   EyeOff,
   Lock,
   Mail,
+  CheckCircle2,
+  XCircle,
   User,
 } from "lucide-react"
 import { Loader2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useMemo, KeyboardEvent } from "react"
-import { z } from "zod"
 import { emailSchema, otpSchema, signinSchema, signupSchema } from "./schema"
 import { useAuthStore } from "@/stores/auth-store"
 
@@ -54,12 +55,18 @@ function Auth() {
   const [email, setEmail] = useState(state.email ?? "")
   const [name, setName] = useState(state.name ?? "")
   const [username, setUsername] = useState(state.username ?? "")
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null
+  )
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false)
   const [otp, setOtp] = useState("")
   const [countdown, setCountdown] = useState(59)
   const [isCountingDown, setIsCountingDown] = useState(false)
-  const [errors, setErrors] = useState<z.ZodError["formErrors"]["fieldErrors"]>(
-    {}
-  )
+  type FormErrors = {
+    [key: string]: string[] | undefined
+  }
+
+  const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
 
@@ -106,6 +113,41 @@ function Auth() {
 
     return () => clearInterval(interval)
   }, [isCountingDown, countdown])
+
+  const checkUsernameAvailability = async (uname: string) => {
+    setIsCheckingUsername(true)
+    setUsernameAvailable(null)
+    try {
+      const res = await fetch(`/api/auth/check-username?username=${uname}`)
+      const { available } = await res.json()
+      setUsernameAvailable(available)
+    } catch (error) {
+      console.error("Failed to check username", error)
+      setUsernameAvailable(null) // Error state
+    } finally {
+      setIsCheckingUsername(false)
+    }
+  }
+
+  useEffect(() => {
+    const isUsernameValid =
+      signupSchema.shape.username.safeParse(username).success
+
+    if (!isUsernameValid) {
+      setUsernameAvailable(null)
+      return
+    }
+
+    // Debounce the check
+    const handler = setTimeout(() => {
+      if (username) {
+        checkUsernameAvailability(username)
+      }
+    }, 500)
+
+    return () => clearTimeout(handler)
+  }, [username])
+
   const handleResendCode = async () => {
     setIsResending(true)
     setErrors({})
@@ -126,7 +168,7 @@ function Auth() {
       if (!res.ok) {
         setErrors({
           root: [data.error || "Failed to resend code"],
-        } as any)
+        })
 
         return
       }
@@ -139,41 +181,61 @@ function Auth() {
 
       setErrors({
         root: ["Failed to connect to server"],
-      } as any)
+      })
     } finally {
       setIsResending(false)
     }
   }
 
   const handleContinueFromEmail = async () => {
-    const result = emailSchema.safeParse({ email })
+    const normalizedEmail = email.trim().toLowerCase()
+
+    const result = emailSchema.safeParse({
+      email: normalizedEmail,
+    })
+
     if (!result.success) {
       setErrors(result.error.flatten().fieldErrors)
       return
     }
+
     setErrors({})
     setIsLoading(true)
 
     try {
-      const res = await fetch("/api/auth/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
+      const res = await fetch(
+        `/api/auth/check-email?email=${encodeURIComponent(normalizedEmail)}`
+      )
 
-      const { exists } = await res.json()
-      const nextStep = exists ? "signin" : "signup"
+      const data = await res.json()
 
-      const data = encodeURIComponent(JSON.stringify({ email, step: nextStep }))
-      router.push(`${pathname}?data=${data}`)
+      if (!res.ok) {
+        setErrors({
+          root: [data.error || "Failed to check email"],
+        })
+        return
+      }
+
+      const nextStep = data.exists ? "signin" : "signup"
+
+      const query = encodeURIComponent(
+        JSON.stringify({
+          email: normalizedEmail,
+          step: nextStep,
+        })
+      )
+
+      router.push(`${pathname}?data=${query}`)
     } catch (error) {
       console.error("Failed to check email", error)
-      setErrors({ root: ["Failed to connect to the server."] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+
+      setErrors({
+        root: ["Failed to connect to the server."],
+      })
     } finally {
       setIsLoading(false)
     }
   }
-
   const handleNextFromSignup = async () => {
     const result = signupSchema.safeParse({
       name,
@@ -198,7 +260,7 @@ function Auth() {
       if (!res.ok) {
         const body = await res.json()
         setIsLoading(false)
-        setErrors({ root: [body.error || "Signup failed"] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        setErrors({ root: [body.error || "Signup failed"] })
         return
       }
 
@@ -228,7 +290,7 @@ function Auth() {
       router.push(`${pathname}?data=${data}`)
     } catch (error) {
       console.error("Signup error", error)
-      setErrors({ root: ["Failed to connect to the server."] } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+      setErrors({ root: ["Failed to connect to the server."] })
     } finally {
       setIsLoading(false)
     }
@@ -262,7 +324,7 @@ function Auth() {
       if (!res.ok) {
         setErrors({
           root: [data.error || "Verification failed"],
-        } as any)
+        })
 
         return
       }
@@ -277,7 +339,7 @@ function Auth() {
 
       setErrors({
         root: ["Failed to connect to server"],
-      } as any)
+      })
     } finally {
       setIsLoading(false)
     }
@@ -310,7 +372,7 @@ function Auth() {
       if (!res.ok) {
         setErrors({
           root: [data.error],
-        } as any)
+        })
         return
       }
 
@@ -322,7 +384,7 @@ function Auth() {
 
       setErrors({
         root: ["Failed to connect to server"],
-      } as any)
+      })
     } finally {
       setIsLoading(false)
     }
@@ -470,9 +532,20 @@ function Auth() {
                     onChange={(e) => setUsername(e.target.value.toLowerCase())}
                     id="username"
                     placeholder="johndoe"
-                    className="pl-10"
+                    className="pr-10 pl-10"
                     disabled={isLoading}
                   />
+                  <div className="absolute right-3 flex items-center">
+                    {isCheckingUsername && (
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    )}
+                    {!isCheckingUsername && usernameAvailable === true && (
+                      <CheckCircle2 className="size-5 text-green-500" />
+                    )}
+                    {!isCheckingUsername && usernameAvailable === false && (
+                      <XCircle className="size-5 text-red-500" />
+                    )}
+                  </div>
                 </div>
                 {username &&
                   signupSchema.shape.username.safeParse(username).error && (
@@ -481,6 +554,16 @@ function Auth() {
                       contain letters and numbers.
                     </p>
                   )}
+                {!isCheckingUsername && usernameAvailable === true && (
+                  <p className="text-xs text-green-500">
+                    Username is available
+                  </p>
+                )}
+                {!isCheckingUsername && usernameAvailable === false && (
+                  <p className="text-xs text-red-500">
+                    Username is already taken
+                  </p>
+                )}
                 {errors.username && (
                   <p className="text-xs text-red-500">{errors.username[0]}</p>
                 )}
@@ -570,7 +653,9 @@ function Auth() {
               <Button
                 className="w-full"
                 onClick={handleNextFromSignup}
-                disabled={isSignupInvalid || isLoading}
+                disabled={
+                  isSignupInvalid || isLoading || usernameAvailable === false
+                }
               >
                 {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {isLoading ? "Creating account..." : "Next"}
