@@ -1,8 +1,9 @@
+import { DATABASE } from "@/constatnts"
 import { PrismaClient } from "@/lib/generated/prisma/client"
 import { PrismaNeon } from "@prisma/adapter-neon"
 
 const adapter = new PrismaNeon({
-  connectionString: process.env.DATABASE_URL!,
+  connectionString: DATABASE.DATABASE_URL,
 })
 
 const globalForPrisma = globalThis as unknown as {

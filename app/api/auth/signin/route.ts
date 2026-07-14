@@ -13,17 +13,10 @@ export async function POST(req: Request) {
       )
     }
 
+    // Get user with password for verification
     const user = await prisma.user.findUnique({
       where: {
         email,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        username: true,
-        password: true,
-        emailVerified: true,
       },
     })
 
@@ -51,14 +44,12 @@ export async function POST(req: Request) {
       )
     }
 
+    // Remove password before sending user data
+    const { password: _, ...userWithoutPassword } = user
+
     return NextResponse.json({
       message: "Signin successful",
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        username: user.username,
-      },
+      user: userWithoutPassword,
     })
   } catch (error) {
     console.error(error)

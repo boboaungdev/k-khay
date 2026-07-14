@@ -34,12 +34,15 @@ export async function POST(req: Request) {
       )
     }
 
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: {
         email,
       },
       data: {
         emailVerified: true,
+      },
+      omit: {
+        password: true,
       },
     })
 
@@ -51,6 +54,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: "Email verified",
+      user,
     })
   } catch (error) {
     console.error(error)

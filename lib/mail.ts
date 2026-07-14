@@ -1,10 +1,11 @@
+import { SMTP } from "@/constatnts"
 import nodemailer from "nodemailer"
 
 export const transporter = nodemailer.createTransport({
   service: "gmail",
 
   auth: {
-    user: process.env.SMTP_EMAIL,
-    pass: process.env.SMTP_PASSWORD,
+    user: SMTP.SMTP_EMAIL,
+    pass: SMTP.SMTP_PASSWORD,
   },
 })

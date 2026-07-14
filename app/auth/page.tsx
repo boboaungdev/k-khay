@@ -36,6 +36,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useMemo, KeyboardEvent } from "react"
 import { z } from "zod"
 import { emailSchema, otpSchema, signinSchema, signupSchema } from "./schema"
+import { useAuthStore } from "@/stores/auth-store"
 
 function Auth() {
   const router = useRouter()
@@ -60,6 +61,7 @@ function Auth() {
     {}
   )
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
 
   const isEmailInvalid = useMemo(
     () => !emailSchema.safeParse({ email }).success,
@@ -104,8 +106,10 @@ function Auth() {
 
     return () => clearInterval(interval)
   }, [isCountingDown, countdown])
-
   const handleResendCode = async () => {
+    setIsResending(true)
+    setErrors({})
+
     try {
       const res = await fetch("/api/auth/send-code", {
         method: "POST",
@@ -136,6 +140,8 @@ function Auth() {
       setErrors({
         root: ["Failed to connect to server"],
       } as any)
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -262,10 +268,10 @@ function Auth() {
       }
 
       // Success
-      console.log("Email verified")
+      useAuthStore.getState().setUser(data.user)
 
       // Example: redirect after verification
-      router.push("/dashboard")
+      router.replace("/dashboard")
     } catch (error) {
       console.error("OTP verification error:", error)
 
@@ -308,7 +314,9 @@ function Auth() {
         return
       }
 
-      router.push("/dashboard")
+      useAuthStore.getState().setUser(data.user)
+
+      router.replace("/dashboard")
     } catch (error) {
       console.error(error)
 
@@ -368,6 +376,7 @@ function Auth() {
               <Button
                 variant="outline"
                 className="flex w-full items-center gap-2"
+                disabled={isLoading}
               >
                 <FcGoogle />
                 Continue with Google
@@ -375,6 +384,7 @@ function Auth() {
               <Button
                 variant="outline"
                 className="flex w-full items-center gap-2"
+                disabled={isLoading}
               >
                 <FaGithub />
                 Continue with GitHub
@@ -404,6 +414,7 @@ function Auth() {
                       handleContinueFromEmail,
                       isEmailInvalid
                     )}
+                    disabled={isLoading}
                   />
                 </div>
                 {errors.email && (
@@ -438,6 +449,7 @@ function Auth() {
                     className="pl-10"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
                 {name && signupSchema.shape.name.safeParse(name).error && (
@@ -459,6 +471,7 @@ function Auth() {
                     id="username"
                     placeholder="johndoe"
                     className="pl-10"
+                    disabled={isLoading}
                   />
                 </div>
                 {username &&
@@ -483,18 +496,21 @@ function Auth() {
                     placeholder="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
                   />
                   {password && (
-                    <div
-                      className="absolute right-3 cursor-pointer"
-                      onClick={() => setShowPassword(!showPassword)}
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 disabled:pointer-events-none disabled:opacity-50"
                     >
                       {showPassword ? (
                         <EyeOff className="size-5 text-muted-foreground" />
                       ) : (
                         <Eye className="size-5 text-muted-foreground" />
                       )}
-                    </div>
+                    </button>
                   )}
                 </div>
                 {password &&
@@ -522,18 +538,21 @@ function Auth() {
                       handleNextFromSignup,
                       isSignupInvalid
                     )}
+                    disabled={isLoading}
                   />
                   {rePassword && (
-                    <div
-                      className="absolute right-3 cursor-pointer"
-                      onClick={() => setShowRePassword(!showRePassword)}
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => setShowRePassword((prev) => !prev)}
+                      className="absolute right-3 disabled:pointer-events-none disabled:opacity-50"
                     >
                       {showRePassword ? (
                         <EyeOff className="size-5 text-muted-foreground" />
                       ) : (
                         <Eye className="size-5 text-muted-foreground" />
                       )}
-                    </div>
+                    </button>
                   )}
                 </div>
                 {rePassword &&
@@ -597,18 +616,21 @@ function Auth() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={handleKeyDown(handleSignin, isSigninInvalid)}
+                    disabled={isLoading}
                   />
                   {password && (
-                    <div
-                      className="absolute right-3 cursor-pointer"
-                      onClick={() => setShowPassword(!showPassword)}
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 disabled:pointer-events-none disabled:opacity-50"
                     >
                       {showPassword ? (
                         <EyeOff className="size-5 text-muted-foreground" />
                       ) : (
                         <Eye className="size-5 text-muted-foreground" />
                       )}
-                    </div>
+                    </button>
                   )}
                 </div>
                 {errors.password && (
@@ -649,6 +671,7 @@ function Auth() {
                   value={otp}
                   onChange={(value) => setOtp(value)}
                   onComplete={handleVerifyOtp}
+                  disabled={isLoading || isResending}
                 >
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
@@ -671,7 +694,7 @@ function Auth() {
               <Button
                 className="w-full"
                 onClick={handleVerifyOtp}
-                disabled={isOtpInvalid || isLoading}
+                disabled={isOtpInvalid || isLoading || isResending}
               >
                 {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {isLoading ? "Verifying..." : "Verify"}
@@ -696,11 +719,18 @@ function Auth() {
                   variant="link"
                   className="w-fit self-end px-0 text-muted-foreground"
                   onClick={handleResendCode}
-                  disabled={isCountingDown}
+                  disabled={isCountingDown || isLoading || isResending}
                 >
-                  {isCountingDown
-                    ? `Resend code in ${countdown}s`
-                    : "Resend code"}
+                  {isResending ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      Resending...
+                    </>
+                  ) : isCountingDown ? (
+                    `Resend code in ${countdown}s`
+                  ) : (
+                    "Resend code"
+                  )}
                 </Button>
               </div>
             </div>
