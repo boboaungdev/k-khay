@@ -67,6 +67,7 @@ function UserInfoDetails() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   useEffect(() => {
     if (!user || username === user.username) {
@@ -100,7 +101,6 @@ function UserInfoDetails() {
     return () => clearTimeout(handler)
   }, [username, user])
 
-  // TODO: Implement form submission logic
   if (!user) {
     return <div>Loading user information...</div>
   }
@@ -138,6 +138,64 @@ function UserInfoDetails() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image.")
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be smaller than 5MB.")
+      return
+    }
+
+    setIsUploadingAvatar(true)
+
+    try {
+      const formData = new FormData()
+
+      formData.append("avatar", file)
+      formData.append("id", user.id)
+
+      const res = await fetch("/api/account/upload-avatar", {
+        method: "PATCH",
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || "Upload failed")
+        return
+      }
+
+      setUser(data.user)
+      console.log("Avatar updated successfully:", data.user)
+
+      toast.success("Avatar updated.")
+    } catch (err) {
+      console.error(err)
+      toast.error("Upload failed.")
+    } finally {
+      setIsUploadingAvatar(false)
+      e.target.value = ""
+    }
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+
+    if (open && user) {
+      setName(user.name)
+      setUsername(user.username)
+      setUsernameAvailable(null)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -146,7 +204,7 @@ function UserInfoDetails() {
             <User className="h-5 w-5" />
             <span>Profile</span>
           </CardTitle>
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <Sheet open={isOpen} onOpenChange={handleOpenChange}>
             <SheetTrigger
               render={
                 <Button variant="ghost" className="flex items-center gap-2" />
@@ -159,8 +217,7 @@ function UserInfoDetails() {
               <SheetHeader>
                 <SheetTitle>Edit profile</SheetTitle>
                 <SheetDescription>
-                  Make changes to your profile here. Click save when you&apos;re
-                  done.
+                  Update your profile information.
                 </SheetDescription>
               </SheetHeader>
               <div className="grid gap-6 p-4">
@@ -262,19 +319,39 @@ function UserInfoDetails() {
         <div className="relative w-fit">
           <label
             htmlFor="avatar-upload"
-            className="group relative cursor-pointer"
+            className={cn(
+              "group relative cursor-pointer",
+              isUploadingAvatar && "pointer-events-none opacity-70"
+            )}
           >
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.avatar ?? ""} alt={user.name ?? ""} />
+              <AvatarImage
+                key={user.avatar}
+                src={user.avatar ?? undefined}
+                alt={user.name ?? "Avatar"}
+              />
+
               <AvatarFallback>
                 {user.name?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
+
             <div className="absolute right-0 bottom-0 rounded-full bg-primary p-1.5">
-              <Upload className="h-4 w-4 text-primary-foreground" />
+              {isUploadingAvatar ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+              ) : (
+                <Upload className="h-4 w-4 text-primary-foreground" />
+              )}
             </div>
           </label>
-          <input id="avatar-upload" type="file" className="sr-only" />
+
+          <input
+            id="avatar-upload"
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={handleAvatarUpload}
+          />
         </div>
         <div className="flex items-center justify-between">
           <Label
@@ -380,6 +457,7 @@ export default function AccountPage() {
           ))}
         </nav>
       </aside>
+
       <main className="flex-1">{ActiveComponent && <ActiveComponent />}</main>
     </div>
   )

@@ -1,13 +1,13 @@
-import { Geist_Mono, Inter } from "next/font/google"
-
-import { Analytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 import { Toaster } from "sonner"
-import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/components/auth-provider"
+import { Analytics } from "@vercel/analytics/next"
+import { Geist_Mono, Inter } from "next/font/google"
+import { SpeedInsights } from "@vercel/speed-insights/next"
+
 import { cn } from "@/lib/utils"
 import { Navbar } from "@/components/navbar"
+import { AuthProvider } from "@/components/auth-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({
   subsets: ["latin"],
