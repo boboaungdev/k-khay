@@ -33,6 +33,13 @@ import {
   SheetTrigger,
   SheetFooter,
 } from "@/components/ui/sheet"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useAuthStore } from "@/stores/auth-store"
 import { cn } from "@/lib/utils"
@@ -432,6 +439,12 @@ export default function AccountPage() {
 
   const ActiveComponent = detailComponents[activeCategory]
 
+  const handleCategoryChange = (categoryId: string) => {
+    const params = new URLSearchParams(searchParams)
+    params.set("category", categoryId)
+    router.replace(`${pathname}?${params.toString()}`)
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-1 gap-8 p-4 sm:px-6 lg:px-8">
       <aside className="hidden w-1/4 md:block">
@@ -445,11 +458,7 @@ export default function AccountPage() {
                 activeCategory === category.id &&
                   "bg-accent text-accent-foreground"
               )}
-              onClick={() => {
-                const params = new URLSearchParams(searchParams)
-                params.set("category", category.id)
-                router.replace(`${pathname}?${params.toString()}`)
-              }}
+              onClick={() => handleCategoryChange(category.id)}
             >
               <category.icon className="h-5 w-5" />
               <span>{category.label}</span>
@@ -458,7 +467,37 @@ export default function AccountPage() {
         </nav>
       </aside>
 
-      <main className="flex-1">{ActiveComponent && <ActiveComponent />}</main>
+      <main className="flex-1">
+        <div className="mb-4 md:hidden">
+          <Select value={activeCategory}  onValueChange={handleCategoryChange}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a category">
+                {(() => {
+                  const activeCategoryDetails = categories.find((c) => c.id === activeCategory)
+                  if (!activeCategoryDetails) {
+                    return null
+                  }
+                  const Icon = activeCategoryDetails.icon
+                  return (
+                    <><Icon className="h-5 w-5" /><span>{activeCategoryDetails.label}</span></>
+                  )
+                })()}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  <div className="flex items-center gap-3">
+                    <category.icon className="h-5 w-5" />
+                    <span>{category.label}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {ActiveComponent && <ActiveComponent />}
+      </main>
     </div>
   )
 }
