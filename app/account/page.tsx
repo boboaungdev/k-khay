@@ -1,5 +1,7 @@
 "use client"
 
+import { toast } from "sonner"
+import { useState, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   User,
@@ -10,6 +12,10 @@ import {
   Settings,
   Pencil,
   Home,
+  Upload,
+  Loader2,
+  CheckCircle2,
+  XCircle,
   type LucideIcon,
 } from "lucide-react"
 import { TbDevices } from "react-icons/tb"
@@ -18,6 +24,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
 import { useAuthStore } from "@/stores/auth-store"
 import { cn } from "@/lib/utils"
@@ -43,9 +58,84 @@ function ProfileDetails() {
 
 function UserInfoDetails() {
   const user = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
+  const [name, setName] = useState(user?.name ?? "")
+  const [username, setUsername] = useState(user?.username ?? "")
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null
+  )
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
+  useEffect(() => {
+    if (!user || username === user.username) {
+      setUsernameAvailable(null)
+      return
+    }
+
+    // Basic validation, you might want to use a schema like in your auth page
+    if (username.length < 6) {
+      setUsernameAvailable(null)
+      return
+    }
+
+    const checkUsername = async () => {
+      setIsCheckingUsername(true)
+      try {
+        const res = await fetch(
+          `/api/account/check-username?username=${encodeURIComponent(username)}&email=${encodeURIComponent(user.email)}`
+        )
+        const data = await res.json()
+        setUsernameAvailable(data.available)
+      } catch (error) {
+        console.error("Failed to check username", error)
+        setUsernameAvailable(null)
+      } finally {
+        setIsCheckingUsername(false)
+      }
+    }
+
+    const handler = setTimeout(checkUsername, 500)
+    return () => clearTimeout(handler)
+  }, [username, user])
+
+  // TODO: Implement form submission logic
   if (!user) {
     return <div>Loading user information...</div>
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch("/api/account/edit-profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: user?.id,
+          name,
+          username,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || "Failed to update profile.")
+        return
+      }
+
+      setUser(data.user)
+      setIsOpen(false)
+      toast.success("Profile updated successfully!")
+    } catch (error) {
+      console.error("Save profile error:", error)
+      toast.error("An error occurred while updating your profile.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -56,23 +146,135 @@ function UserInfoDetails() {
             <User className="h-5 w-5" />
             <span>Profile</span>
           </CardTitle>
-          <Button variant="ghost" className="flex items-center gap-2">
-            <Pencil className="h-4 w-4" />
-            <span>Edit</span>
-          </Button>
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger
+              render={
+                <Button variant="ghost" className="flex items-center gap-2" />
+              }
+            >
+              <Pencil className="h-4 w-4" />
+              <span>Edit</span>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Edit profile</SheetTitle>
+                <SheetDescription>
+                  Make changes to your profile here. Click save when you&apos;re
+                  done.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid gap-6 p-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Name</Label>
+                  <div className="relative flex items-center">
+                    <User className="absolute left-3 size-5 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Name"
+                      disabled={isSaving}
+                      className="pl-10"
+                    />
+                  </div>
+                  {name.length > 0 && name.length < 2 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Name must be at least 2 characters.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="username">Username</Label>
+                  <div className="relative flex items-center">
+                    <AtSign className="absolute left-3 size-5 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) =>
+                        setUsername(e.target.value.toLowerCase())
+                      }
+                      disabled={isSaving}
+                      placeholder="username"
+                      className="pr-10 pl-10"
+                    />
+                    <div className="absolute right-3 flex items-center">
+                      {isCheckingUsername && (
+                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                      )}
+                      {!isCheckingUsername &&
+                        username !== user.username &&
+                        usernameAvailable === true && (
+                          <CheckCircle2 className="size-5 text-green-500" />
+                        )}
+                      {!isCheckingUsername &&
+                        username !== user.username &&
+                        usernameAvailable === false && (
+                          <XCircle className="size-5 text-red-500" />
+                        )}
+                    </div>
+                  </div>
+                  {username === user.username ? (
+                    <p className="text-sm text-muted-foreground">
+                      This is your current username.
+                    </p>
+                  ) : username.length > 0 && username.length < 6 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Username must be at least 6 characters.
+                    </p>
+                  ) : !isCheckingUsername && usernameAvailable === true ? (
+                    <p className="text-sm text-green-500">
+                      Username is available.
+                    </p>
+                  ) : !isCheckingUsername && usernameAvailable === false ? (
+                    <p className="text-sm text-red-500">
+                      Username is already taken.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <SheetFooter>
+                <Button
+                  type="submit"
+                  disabled={
+                    (name === user.name && username === user.username) ||
+                    name.length < 2 ||
+                    isCheckingUsername ||
+                    (username !== user.username &&
+                      usernameAvailable !== true) ||
+                    isSaving
+                  }
+                  onClick={handleSave}
+                >
+                  {isSaving && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {isSaving ? "Saving..." : "Save changes"}
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </div>
         <p className="text-sm text-muted-foreground">
-          This is how others will see you on the site.
+          Update your profile information.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-20 w-20">
-            <AvatarImage src={user.avatar ?? ""} alt={user.name ?? ""} />
-            <AvatarFallback>
-              {user.name?.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+        <div className="relative w-fit">
+          <label
+            htmlFor="avatar-upload"
+            className="group relative cursor-pointer"
+          >
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={user.avatar ?? ""} alt={user.name ?? ""} />
+              <AvatarFallback>
+                {user.name?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute right-0 bottom-0 rounded-full bg-primary p-1.5">
+              <Upload className="h-4 w-4 text-primary-foreground" />
+            </div>
+          </label>
+          <input id="avatar-upload" type="file" className="sr-only" />
         </div>
         <div className="flex items-center justify-between">
           <Label
@@ -152,8 +354,6 @@ export default function AccountPage() {
       : "home"
 
   const ActiveComponent = detailComponents[activeCategory]
-  const activeCategoryLabel =
-    categories.find((c) => c.id === activeCategory)?.label || "Home"
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-1 gap-8 p-4 sm:px-6 lg:px-8">
