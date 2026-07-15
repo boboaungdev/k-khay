@@ -1,20 +1,27 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/auth-store"
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const router = useRouter()
+  const pathname = usePathname()
 
   const user = useAuthStore((state) => state.user)
   const hydrated = useAuthStore((state) => state.hydrated)
 
   useEffect(() => {
-    if (hydrated && user) {
+    if (!hydrated) return
+
+    if (user && pathname === "/auth") {
       router.replace("/account")
     }
-  }, [hydrated, user, router])
+  }, [hydrated, user, pathname, router])
 
   if (!hydrated) {
     return null

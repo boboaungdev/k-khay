@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   User,
   Shield,
   Link,
+  Mail,
+  AtSign,
   Settings,
+  Pencil,
   Home,
   type LucideIcon,
 } from "lucide-react"
@@ -47,25 +49,69 @@ function UserInfoDetails() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Avatar className="h-20 w-20">
-          <AvatarImage src={user.avatar ?? ""} alt={user.name ?? ""} />
-          <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div>
-          <h3 className="text-lg font-semibold">{user.name}</h3>
-          <p className="text-sm text-muted-foreground">@{user.username}</p>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            <span>Profile</span>
+          </CardTitle>
+          <Button variant="ghost" className="flex items-center gap-2">
+            <Pencil className="h-4 w-4" />
+            <span>Edit</span>
+          </Button>
         </div>
-      </div>
-      <div className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" defaultValue={user.email ?? ""} disabled />
+        <p className="text-sm text-muted-foreground">
+          This is how others will see you on the site.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-20 w-20">
+            <AvatarImage src={user.avatar ?? ""} alt={user.name ?? ""} />
+            <AvatarFallback>
+              {user.name?.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
         </div>
-      </div>
-      <Button>Save Changes</Button>
-    </div>
+        <div className="flex items-center justify-between">
+          <Label
+            htmlFor="name"
+            className="flex items-center gap-2 text-muted-foreground"
+          >
+            <User className="h-4 w-4" />
+            <span>Name</span>
+          </Label>
+          <p id="name" className="font-semibold">
+            {user.name}
+          </p>
+        </div>
+        <div className="flex items-center justify-between">
+          <Label
+            htmlFor="username"
+            className="flex items-center gap-2 text-muted-foreground"
+          >
+            <AtSign className="h-4 w-4" />
+            <span>Username</span>
+          </Label>
+          <p id="username" className="text-muted-foreground">
+            @{user.username}
+          </p>
+        </div>
+        <div className="flex items-center justify-between">
+          <Label
+            htmlFor="email"
+            className="flex items-center gap-2 text-muted-foreground"
+          >
+            <Mail className="h-4 w-4" />
+            <span>Email</span>
+          </Label>
+          <p id="email" className="text-muted-foreground">
+            {user.email}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -100,19 +146,10 @@ export default function AccountPage() {
   const searchParams = useSearchParams()
   const urlCategory = searchParams.get("category")
 
-  const [activeCategory, setActiveCategory] = useState<string>(
+  const activeCategory =
     urlCategory && categories.some((c) => c.id === urlCategory)
       ? urlCategory
       : "home"
-  )
-
-  useEffect(() => {
-    if (urlCategory && categories.some((c) => c.id === urlCategory)) {
-      setActiveCategory(urlCategory)
-    } else {
-      setActiveCategory("home")
-    }
-  }, [urlCategory])
 
   const ActiveComponent = detailComponents[activeCategory]
   const activeCategoryLabel =
@@ -132,7 +169,6 @@ export default function AccountPage() {
                   "bg-accent text-accent-foreground"
               )}
               onClick={() => {
-                setActiveCategory(category.id)
                 const params = new URLSearchParams(searchParams)
                 params.set("category", category.id)
                 router.replace(`${pathname}?${params.toString()}`)
@@ -144,14 +180,7 @@ export default function AccountPage() {
           ))}
         </nav>
       </aside>
-      <main className="flex-1">
-        <Card>
-          <CardHeader>
-            <CardTitle>{activeCategoryLabel}</CardTitle>
-          </CardHeader>
-          <CardContent>{ActiveComponent && <ActiveComponent />}</CardContent>
-        </Card>
-      </main>
+      <main className="flex-1">{ActiveComponent && <ActiveComponent />}</main>
     </div>
   )
 }
