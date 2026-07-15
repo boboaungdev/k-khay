@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { APP_INFO } from "@/constatnts"
+import { APP_INFO, OTHER_SERVICE } from "@/constatnts"
 import AppName from "./app-name"
 import {
   CircleUser,
@@ -31,11 +31,15 @@ import { Switch } from "./ui/switch"
 import { Label } from "./ui/label"
 
 const services = [
-  { name: "Account", href: "/services/account", icon: CircleUser },
-  { name: "Web3 Wallet", href: "/services/web3-wallet", icon: Wallet },
-  { name: "Drive", href: "/services/drive", icon: HardDrive },
-  { name: "Web Hosting", href: "/services/web-hosting", icon: Server },
-  { name: "Domain", href: "/services/domain", icon: Globe },
+  { name: "Account", href: "/account", icon: CircleUser },
+  {
+    name: OTHER_SERVICE.wallet.name,
+    href: OTHER_SERVICE.wallet.href,
+    icon: Wallet,
+  },
+  { name: "Domain", href: "/domain", icon: Globe },
+  { name: "Drive", href: "/drive", icon: HardDrive },
+  { name: "Web Hosting", href: "/web-hosting", icon: Server },
 ]
 
 export function Navbar() {
@@ -107,7 +111,10 @@ export function Navbar() {
                   }
                 >
                   <Avatar>
-                    <AvatarImage src={user.avatar ?? ""} alt={user.name ?? ""} />
+                    <AvatarImage
+                      src={user.avatar ?? ""}
+                      alt={user.name ?? ""}
+                    />
                     <AvatarFallback>
                       {user.name?.charAt(0).toUpperCase()}
                     </AvatarFallback>

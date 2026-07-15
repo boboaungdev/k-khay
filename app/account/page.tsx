@@ -446,58 +446,68 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 gap-8 p-4 sm:px-6 lg:px-8">
-      <aside className="hidden w-1/4 md:block">
-        <nav className="flex flex-col gap-2">
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant="ghost"
-              className={cn(
-                "justify-start gap-3 px-3",
-                activeCategory === category.id &&
-                  "bg-accent text-accent-foreground"
-              )}
-              onClick={() => handleCategoryChange(category.id)}
-            >
-              <category.icon className="h-5 w-5" />
-              <span>{category.label}</span>
-            </Button>
-          ))}
-        </nav>
-      </aside>
+    <div className="mx-auto w-full max-w-7xl flex-1 p-4 sm:px-6 lg:px-8">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold tracking-tight">Account</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your account settings and preferences.
+        </p>
+      </div>
+      <div className="flex w-full flex-1 gap-8">
+        <aside className="hidden w-1/4 md:block">
+          <nav className="flex flex-col gap-2">
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                variant="ghost"
+                className={cn(
+                  "justify-start gap-3 px-3",
+                  activeCategory === category.id &&
+                    "bg-accent text-accent-foreground"
+                )}
+                onClick={() => handleCategoryChange(category.id)}
+              >
+                <category.icon className="h-5 w-5" />
+                <span>{category.label}</span>
+              </Button>
+            ))}
+          </nav>
+        </aside>
 
-      <main className="flex-1">
-        <div className="mb-4 md:hidden">
-          <Select value={activeCategory}  onValueChange={handleCategoryChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a category">
-                {(() => {
-                  const activeCategoryDetails = categories.find((c) => c.id === activeCategory)
-                  if (!activeCategoryDetails) {
-                    return null
-                  }
-                  const Icon = activeCategoryDetails.icon
-                  return (
-                    <><Icon className="h-5 w-5" /><span>{activeCategoryDetails.label}</span></>
-                  )
-                })()}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  <div className="flex items-center gap-3">
-                    <category.icon className="h-5 w-5" />
-                    <span>{category.label}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {ActiveComponent && <ActiveComponent />}
-      </main>
+        <main className="flex-1">
+          <div className="mb-4 md:hidden">
+            <Select value={activeCategory} onValueChange={handleCategoryChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a category">
+                  {(() => {
+                    const activeCategoryDetails = categories.find(
+                      (c) => c.id === activeCategory
+                    )
+                    if (!activeCategoryDetails) {
+                      return null
+                    }
+                    const Icon = activeCategoryDetails.icon
+                    return (
+                      <><Icon className="h-5 w-5" /><span>{activeCategoryDetails.label}</span></>
+                    )
+                  })()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    <div className="flex items-center gap-3">
+                      <category.icon className="h-5 w-5" />
+                      <span>{category.label}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {ActiveComponent && <ActiveComponent />}
+        </main>
+      </div>
     </div>
   )
 }

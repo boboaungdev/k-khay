@@ -3,6 +3,13 @@ export const APP_INFO = {
   appTagLine: "Explore the World",
 } as const
 
+export const OTHER_SERVICE = {
+  wallet: {
+    name: "Web3 Wallet",
+    href: "https://wallet.kkhay.com",
+  },
+} as const
+
 export const DATABASE = {
   DATABASE_URL: process.env.DATABASE_URL,
 } as const
