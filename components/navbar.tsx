@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { ThemeToggle } from "./theme-toggle"
@@ -46,6 +47,7 @@ export function Navbar() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -169,9 +171,15 @@ export function Navbar() {
 
                   <DropdownMenuSeparator />
 
-                  <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      logout()
+                      router.push("/auth")
+                    }}
+                    className="cursor-pointer text-red-500 focus:bg-red-100 focus:text-red-600 dark:focus:bg-red-900/60 dark:focus:text-red-400"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

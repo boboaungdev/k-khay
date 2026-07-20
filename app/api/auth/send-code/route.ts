@@ -2,12 +2,13 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { transporter } from "@/lib/mail"
 import { APP_INFO, SMTP } from "@/constatnts"
+import { EmailVerificationType } from "@/lib/generated/prisma/enums"
 
 export async function POST(req: Request) {
   try {
     const { email, type } = (await req.json()) as {
       email: string
-      type: "signup" | "password-reset"
+      type: "signup" | "reset-password"
     }
 
     if (!email) {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Type required" }, { status: 400 })
     }
 
-    if (type === "password-reset") {
+    if (type === "reset-password") {
       const user = await prisma.user.findUnique({ where: { email } })
       if (!user) {
         return NextResponse.json(
@@ -27,11 +28,17 @@ export async function POST(req: Request) {
       }
     }
 
+    const verificationType =
+      type === "signup"
+        ? EmailVerificationType.SIGNUP
+        : EmailVerificationType.RESET_PASSWORD
+
     const code = Math.floor(100000 + Math.random() * 900000).toString()
 
     await prisma.emailVerification.deleteMany({
       where: {
         email,
+        type: verificationType,
       },
     })
 
@@ -39,17 +46,18 @@ export async function POST(req: Request) {
       data: {
         email,
         code,
+        type: verificationType,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       },
     })
 
     const subject =
-      type === "password-reset"
+      type === "reset-password"
         ? `[${APP_INFO.appName}] Reset your password`
         : `[${APP_INFO.appName}] Verify your email`
 
     const html =
-      type === "password-reset"
+      type === "reset-password"
         ? `
         <h2>Password Reset</h2>
         <p>Your password reset code:</p>
@@ -65,7 +73,10 @@ export async function POST(req: Request) {
       `
 
     await transporter.sendMail({
-      from: SMTP.SMTP_EMAIL_FROM,
+      from: {
+        name: APP_INFO.appName,
+        address: SMTP.SMTP_EMAIL_FROM,
+      },
       to: email,
       subject,
       html,

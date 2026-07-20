@@ -439,10 +439,12 @@ export default function AccountPage() {
 
   const ActiveComponent = detailComponents[activeCategory]
 
-  const handleCategoryChange = (categoryId: string) => {
-    const params = new URLSearchParams(searchParams)
-    params.set("category", categoryId)
-    router.replace(`${pathname}?${params.toString()}`)
+  const handleCategoryChange = (categoryId: string | null) => {
+    if (categoryId) {
+      const params = new URLSearchParams(searchParams)
+      params.set("category", categoryId)
+      router.replace(`${pathname}?${params.toString()}`)
+    }
   }
 
   return (
@@ -488,7 +490,10 @@ export default function AccountPage() {
                     }
                     const Icon = activeCategoryDetails.icon
                     return (
-                      <><Icon className="h-5 w-5" /><span>{activeCategoryDetails.label}</span></>
+                      <>
+                        <Icon className="h-5 w-5" />
+                        <span>{activeCategoryDetails.label}</span>
+                      </>
                     )
                   })()}
                 </SelectValue>

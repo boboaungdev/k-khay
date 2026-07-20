@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import {  prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { EmailVerificationType } from "@/lib/generated/prisma/enums"
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
       where: {
         email,
         code,
+        type: EmailVerificationType.RESET_PASSWORD,
       },
     })
 
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: {
         email,
       },
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: "Password reset successfully",
+      user,
     })
   } catch (error) {
     console.error(error)

@@ -91,9 +91,21 @@ function Auth() {
     [email, password]
   )
   const isResetPasswordInvalid = useMemo(
-    () => !resetPasswordSchema.safeParse({ password, rePassword }).success,
-    [password, rePassword]
+    () => !resetPasswordSchema.safeParse({ otp, password, rePassword }).success,
+    [otp, password, rePassword]
   )
+
+  useEffect(() => {
+    if (otp.length === 6) {
+      if (step === "verify-email") {
+        handleVerifyOtp()
+      } else if (step === "reset-password") {
+        // For reset password, we just want to validate the OTP part of the form
+        // before the user fills in the new password.
+        // The full reset is handled by handleResetPassword.
+      }
+    }
+  }, [otp, step])
 
   useEffect(() => {
     const data = searchParams.get("data")
@@ -170,7 +182,7 @@ function Auth() {
         },
         body: JSON.stringify({
           email,
-          type: flow === "reset-password" ? "password-reset" : "signup",
+          type: flow === "reset-password" ? "reset-password" : "signup",
         }),
       })
 
@@ -309,11 +321,16 @@ function Auth() {
   }
 
   const handleVerifyOtp = async () => {
+    if (isLoading || isResending) return
+
     const result = otpSchema.safeParse({ otp })
 
     if (!result.success) {
-      setErrors(result.error.flatten().fieldErrors)
-      return
+      // Don't show error if user is just typing
+      if (otp.length === 6) {
+        setErrors(result.error.flatten().fieldErrors)
+      }
+      return Promise.resolve() // Return a promise to satisfy useCallback if needed
     }
     setErrors({})
 
@@ -326,7 +343,7 @@ function Auth() {
         })
       )
       router.push(`${pathname}?data=${query}`)
-      return
+      return Promise.resolve()
     }
 
     setIsLoading(true)
@@ -349,7 +366,7 @@ function Auth() {
         setErrors({
           root: [data.error || "Verification failed"],
         })
-        return
+        return Promise.resolve()
       }
 
       // Success
@@ -365,6 +382,7 @@ function Auth() {
     } finally {
       setIsLoading(false)
     }
+    return Promise.resolve()
   }
   const handleSignin = async () => {
     const result = signinSchema.safeParse({ email, password })
@@ -424,7 +442,7 @@ function Auth() {
         },
         body: JSON.stringify({
           email,
-          type: "password-reset",
+          type: "reset-password",
         }),
       })
 
@@ -454,7 +472,16 @@ function Auth() {
   }
 
   const handleResetPassword = async () => {
-    const result = resetPasswordSchema.safeParse({ password, rePassword })
+    if (otp.length !== 6) {
+      setErrors({ otp: ["Verification code must be 6 digits."] })
+      return
+    }
+
+    const result = resetPasswordSchema.safeParse({
+      otp,
+      password,
+      rePassword,
+    })
 
     if (!result.success) {
       setErrors(result.error.flatten().fieldErrors)
@@ -582,12 +609,13 @@ function Auth() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder="your@example.com"
                     className="pl-10"
                     value={email}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setEmail(e.target.value.replace(/\s/g, "").toLowerCase())
-                    }
+                      setErrors({})
+                    }}
                     onKeyDown={handleKeyDown(
                       handleContinueFromEmail,
                       isEmailInvalid
@@ -626,7 +654,10 @@ function Auth() {
                     placeholder="John Doe"
                     className="pl-10"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value)
+                      setErrors({})
+                    }}
                     disabled={isLoading}
                   />
                 </div>
@@ -645,13 +676,14 @@ function Auth() {
                   <AtSign className="absolute left-3 size-5 text-muted-foreground" />
                   <Input
                     value={username}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setUsername(
                         e.target.value
                           .replace(/[^a-zA-Z0-9]/g, "")
                           .toLowerCase()
                       )
-                    }
+                      setErrors({})
+                    }}
                     id="username"
                     placeholder="johndoe"
                     className="pr-10 pl-10"
@@ -700,7 +732,10 @@ function Auth() {
                     className="pr-10 pl-10"
                     placeholder="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      setErrors({})
+                    }}
                     disabled={isLoading}
                   />
                   {password && (
@@ -738,7 +773,10 @@ function Auth() {
                     className="pr-10 pl-10"
                     placeholder="confirm password"
                     value={rePassword}
-                    onChange={(e) => setRePassword(e.target.value)}
+                    onChange={(e) => {
+                      setRePassword(e.target.value)
+                      setErrors({})
+                    }}
                     onKeyDown={handleKeyDown(
                       handleNextFromSignup,
                       isSignupInvalid
@@ -824,7 +862,10 @@ function Auth() {
                     placeholder="password"
                     className="pr-10 pl-10"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      setErrors({})
+                    }}
                     onKeyDown={handleKeyDown(handleSignin, isSigninInvalid)}
                     disabled={isLoading}
                   />
@@ -893,7 +934,7 @@ function Auth() {
               <div className="grid gap-2">
                 <Label htmlFor="verification-code">Verification Code</Label>
                 <div className="relative flex items-center">
-                  <Lock className="absolute left-3 size-5 text-muted-foreground" />
+                  <KeyRound className="absolute left-3 size-5 text-muted-foreground" />
                   <Input
                     id="verification-code"
                     type="text"
@@ -901,11 +942,36 @@ function Auth() {
                     placeholder="123456"
                     maxLength={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+                    onChange={(e) => {
+                      setOtp(e.target.value.replace(/[^0-9]/g, ""))
+                      setErrors({})
+                    }}
+                    onKeyDown={handleKeyDown(
+                      handleVerifyOtp,
+                      isOtpInvalid || otp.length !== 6
+                    )}
                     disabled={isLoading || isResending}
-                    className="pl-10 text-center tracking-[0.5em]"
+                    className="pl-10"
                   />
+                  <div className="absolute right-3 flex items-center">
+                    <Button
+                      variant="link"
+                      className="h-auto w-fit self-end px-0 text-muted-foreground"
+                      onClick={handleResendCode}
+                      disabled={isCountingDown || isLoading || isResending}
+                    >
+                      {isResending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Resending...
+                        </>
+                      ) : isCountingDown ? (
+                        `Resend in ${formatCountdown(countdown)}`
+                      ) : (
+                        "Resend code"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
               {errors.otp && (
@@ -941,23 +1007,6 @@ function Auth() {
                   <ChevronLeft className="size-4" />
                   <span>Back</span>
                 </Button>
-                <Button
-                  variant="link"
-                  className="w-fit self-end px-0 text-muted-foreground"
-                  onClick={handleResendCode}
-                  disabled={isCountingDown || isLoading || isResending}
-                >
-                  {isResending ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      Resending...
-                    </>
-                  ) : isCountingDown ? (
-                    `Resend code in ${formatCountdown(countdown)}`
-                  ) : (
-                    "Resend code"
-                  )}
-                </Button>
               </div>
             </div>
           ) : (
@@ -973,9 +1022,14 @@ function Auth() {
                     placeholder="123456"
                     maxLength={6}
                     value={otp}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setOtp(e.target.value.replace(/[^0-9]/g, ""))
-                    }
+                      setErrors({})
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && otp.length === 6)
+                        document.getElementById("password")?.focus()
+                    }}
                     disabled={isLoading}
                     className="pl-10"
                   />
@@ -999,6 +1053,9 @@ function Auth() {
                     </Button>
                   </div>
                 </div>
+                {errors.otp && (
+                  <p className="text-xs text-red-500">{errors.otp[0]}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">New Password</Label>
@@ -1010,7 +1067,10 @@ function Auth() {
                     className="pr-10 pl-10"
                     placeholder="new password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      setErrors({})
+                    }}
                     disabled={isLoading}
                   />
                   {password && (
@@ -1049,7 +1109,10 @@ function Auth() {
                     className="pr-10 pl-10"
                     placeholder="confirm new password"
                     value={rePassword}
-                    onChange={(e) => setRePassword(e.target.value)}
+                    onChange={(e) => {
+                      setRePassword(e.target.value)
+                      setErrors({})
+                    }}
                     onKeyDown={handleKeyDown(
                       handleResetPassword,
                       isResetPasswordInvalid

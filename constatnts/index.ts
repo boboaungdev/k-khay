@@ -15,9 +15,9 @@ export const DATABASE = {
 } as const
 
 export const SMTP = {
-  SMTP_EMAIL: process.env.SMTP_EMAIL,
-  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
-  SMTP_EMAIL_FROM: process.env.SMTP_EMAIL_FROM,
+  SMTP_EMAIL: process.env.SMTP_EMAIL!,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD!,
+  SMTP_EMAIL_FROM: process.env.SMTP_EMAIL_FROM!,
 } as const
 
 export const R2 = {

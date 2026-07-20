@@ -28,6 +28,7 @@ export const signupSchema = z
 
 export const resetPasswordSchema = z
   .object({
+    otp: z.string().min(6, { message: "Verification code must be 6 digits." }),
     password: z
       .string()
       .min(8, { message: "Password must be at least 8 characters." }),
