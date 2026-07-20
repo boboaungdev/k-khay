@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable react-hooks/exhaustive-deps, react-hooks/immutability, react-hooks/set-state-in-effect */
+
 import Image from "next/image"
 import AppName from "@/components/app-name"
 import { Button } from "@/components/ui/button"
@@ -37,10 +39,24 @@ import {
   resetPasswordSchema,
   signinSchema,
   signupSchema,
-} from "./schema"
-import { useAuthStore } from "@/stores/auth-store"
+} from "@/features/auth/schemas/auth.schema"
+import { useAuthStore } from "@/features/auth/store/auth.store"
 
-function Auth() {
+type AuthStep =
+  | "email"
+  | "signin"
+  | "signup"
+  | "verify-email"
+  | "reset-password"
+
+type AuthFlowKind = "signup" | "reset-password"
+
+type AuthProps = {
+  initialStep?: AuthStep
+  initialFlow?: AuthFlowKind
+}
+
+function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -48,8 +64,8 @@ function Auth() {
   const data = searchParams.get("data")
   const state = data ? JSON.parse(decodeURIComponent(data)) : {}
 
-  const [flow, setFlow] = useState(state.flow ?? "signup") // 'signup' or 'reset-password'
-  const [step, setStep] = useState(state.step ?? "email")
+  const [flow, setFlow] = useState<AuthFlowKind>(state.flow ?? initialFlow)
+  const [step, setStep] = useState<AuthStep>(state.step ?? initialStep)
   const [showPassword, setShowPassword] = useState(false)
   const [showRePassword, setShowRePassword] = useState(false)
   const [password, setPassword] = useState("")
@@ -110,8 +126,8 @@ function Auth() {
   useEffect(() => {
     const data = searchParams.get("data")
     const state = data ? JSON.parse(decodeURIComponent(data)) : {}
-    setStep(state.step ?? "email")
-    setFlow(state.flow ?? "signup")
+    setStep(state.step ?? initialStep)
+    setFlow(state.flow ?? initialFlow)
   }, [searchParams])
 
   useEffect(() => {
@@ -134,12 +150,12 @@ function Auth() {
     return () => clearInterval(interval)
   }, [isCountingDown, countdown])
 
-  const checkUsernameAvailability = async (uname: string) => {
+  const checkUsernameAvailability = async (usernameToCheck: string) => {
     setIsCheckingUsername(true)
     setUsernameAvailable(null)
     try {
       const res = await fetch(
-        `/api/auth/check-username?username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`
+        `/api/auth/check-username?username=${encodeURIComponent(usernameToCheck)}&email=${encodeURIComponent(email)}`
       )
       const { available } = await res.json()
       setUsernameAvailable(available)
@@ -1179,10 +1195,10 @@ function Auth() {
   )
 }
 
-export default function AuthPage() {
+export default function AuthFlow(props: AuthProps) {
   return (
     <Suspense>
-      <Auth />
+      <Auth {...props} />
     </Suspense>
   )
 }

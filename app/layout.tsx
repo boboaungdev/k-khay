@@ -5,8 +5,8 @@ import { Geist_Mono, Inter } from "next/font/google"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import { cn } from "@/lib/utils"
-import { Navbar } from "@/components/navbar"
-import { AuthProvider } from "@/components/auth-provider"
+import { Navbar } from "@/components/layout/navbar"
+import { AuthProvider } from "@/features/auth/providers/AuthProvider"
 import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({

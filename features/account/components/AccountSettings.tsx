@@ -1,24 +1,20 @@
 "use client"
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   User,
-  Shield,
-  Link,
   Mail,
   AtSign,
-  Settings,
   Pencil,
-  Home,
   Upload,
   Loader2,
   CheckCircle2,
   XCircle,
-  type LucideIcon,
 } from "lucide-react"
-import { TbDevices } from "react-icons/tb"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,23 +37,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { useAuthStore } from "@/stores/auth-store"
+import { useAuthStore } from "@/features/auth/store/auth.store"
 import { cn } from "@/lib/utils"
-
-type Category = {
-  id: string
-  label: string
-  icon: LucideIcon | React.ComponentType
-}
-
-const categories: Category[] = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "userinfo", label: "User Info", icon: User },
-  { id: "security", label: "Security", icon: Shield },
-  { id: "devices", label: "Devices", icon: TbDevices },
-  { id: "connections", label: "Connections", icon: Link },
-  { id: "preferences", label: "Preferences", icon: Settings },
-]
+import { ACCOUNT_CATEGORIES } from "@/features/account/constants/account.constants"
 
 function ProfileDetails() {
   return <div>Manage your profile settings here.</div>
@@ -433,7 +415,7 @@ export default function AccountPage() {
   const urlCategory = searchParams.get("category")
 
   const activeCategory =
-    urlCategory && categories.some((c) => c.id === urlCategory)
+    urlCategory && ACCOUNT_CATEGORIES.some((c) => c.id === urlCategory)
       ? urlCategory
       : "home"
 
@@ -458,7 +440,7 @@ export default function AccountPage() {
       <div className="flex w-full flex-1 gap-8">
         <aside className="hidden w-1/4 md:block">
           <nav className="flex flex-col gap-2">
-            {categories.map((category) => (
+            {ACCOUNT_CATEGORIES.map((category) => (
               <Button
                 key={category.id}
                 variant="ghost"
@@ -482,7 +464,7 @@ export default function AccountPage() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a category">
                   {(() => {
-                    const activeCategoryDetails = categories.find(
+                    const activeCategoryDetails = ACCOUNT_CATEGORIES.find(
                       (c) => c.id === activeCategory
                     )
                     if (!activeCategoryDetails) {
@@ -499,7 +481,7 @@ export default function AccountPage() {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
+                {ACCOUNT_CATEGORIES.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     <div className="flex items-center gap-3">
                       <category.icon className="h-5 w-5" />

@@ -46,7 +46,16 @@ export async function PATCH(req: Request) {
       },
     })
 
-    const { password: _, ...userWithoutPassword } = user
+    const userWithoutPassword = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: user.name,
+      emailVerified: user.emailVerified,
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }
 
     return NextResponse.json({
       message: "Profile updated",
