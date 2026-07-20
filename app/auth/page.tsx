@@ -11,12 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/components/ui/input-otp"
 import { Label } from "@/components/ui/label"
 import { APP_INFO } from "@/constatnts"
 import { useEffect, useState } from "react"
@@ -32,11 +26,18 @@ import {
   CheckCircle2,
   XCircle,
   User,
+  KeyRound,
 } from "lucide-react"
 import { Loader2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useMemo, KeyboardEvent } from "react"
-import { emailSchema, otpSchema, signinSchema, signupSchema } from "./schema"
+import {
+  emailSchema,
+  otpSchema,
+  resetPasswordSchema,
+  signinSchema,
+  signupSchema,
+} from "./schema"
 import { useAuthStore } from "@/stores/auth-store"
 
 function Auth() {
@@ -47,6 +48,7 @@ function Auth() {
   const data = searchParams.get("data")
   const state = data ? JSON.parse(decodeURIComponent(data)) : {}
 
+  const [flow, setFlow] = useState(state.flow ?? "signup") // 'signup' or 'reset-password'
   const [step, setStep] = useState(state.step ?? "email")
   const [showPassword, setShowPassword] = useState(false)
   const [showRePassword, setShowRePassword] = useState(false)
@@ -60,7 +62,7 @@ function Auth() {
   )
   const [isCheckingUsername, setIsCheckingUsername] = useState(false)
   const [otp, setOtp] = useState("")
-  const [countdown, setCountdown] = useState(59)
+  const [countdown, setCountdown] = useState(60)
   const [isCountingDown, setIsCountingDown] = useState(false)
   type FormErrors = {
     [key: string]: string[] | undefined
@@ -68,6 +70,7 @@ function Auth() {
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
 
   const isEmailInvalid = useMemo(
@@ -87,15 +90,20 @@ function Auth() {
     () => !signinSchema.safeParse({ email, password }).success,
     [email, password]
   )
+  const isResetPasswordInvalid = useMemo(
+    () => !resetPasswordSchema.safeParse({ password, rePassword }).success,
+    [password, rePassword]
+  )
 
   useEffect(() => {
     const data = searchParams.get("data")
     const state = data ? JSON.parse(decodeURIComponent(data)) : {}
     setStep(state.step ?? "email")
+    setFlow(state.flow ?? "signup")
   }, [searchParams])
 
   useEffect(() => {
-    if (step === "verify-email") {
+    if (step === "verify-email" || step === "reset-password") {
       setIsCountingDown(true)
     }
   }, [step])
@@ -108,7 +116,7 @@ function Auth() {
       }, 1000)
     } else if (countdown === 0) {
       setIsCountingDown(false)
-      setCountdown(59)
+      setCountdown(60)
     }
 
     return () => clearInterval(interval)
@@ -148,7 +156,7 @@ function Auth() {
     }, 500)
 
     return () => clearTimeout(handler)
-  }, [username])
+  }, [username, email])
 
   const handleResendCode = async () => {
     setIsResending(true)
@@ -162,6 +170,7 @@ function Auth() {
         },
         body: JSON.stringify({
           email,
+          type: flow === "reset-password" ? "password-reset" : "signup",
         }),
       })
 
@@ -176,7 +185,7 @@ function Auth() {
       }
 
       setOtp("")
-      setCountdown(59)
+      setCountdown(60)
       setIsCountingDown(true)
     } catch (error) {
       console.error(error)
@@ -273,6 +282,7 @@ function Auth() {
         },
         body: JSON.stringify({
           email,
+          type: "signup",
         }),
       })
 
@@ -305,10 +315,21 @@ function Auth() {
       setErrors(result.error.flatten().fieldErrors)
       return
     }
-
     setErrors({})
-    setIsLoading(true)
 
+    if (flow === "reset-password") {
+      const query = encodeURIComponent(
+        JSON.stringify({
+          email,
+          step: "reset-password",
+          flow: "reset-password",
+        })
+      )
+      router.push(`${pathname}?data=${query}`)
+      return
+    }
+
+    setIsLoading(true)
     try {
       const res = await fetch("/api/auth/verify-code", {
         method: "POST",
@@ -318,6 +339,7 @@ function Auth() {
         body: JSON.stringify({
           email,
           code: otp,
+          type: "signup",
         }),
       })
 
@@ -327,7 +349,6 @@ function Auth() {
         setErrors({
           root: [data.error || "Verification failed"],
         })
-
         return
       }
 
@@ -338,7 +359,6 @@ function Auth() {
       router.replace("/account")
     } catch (error) {
       console.error("OTP verification error:", error)
-
       setErrors({
         root: ["Failed to connect to server"],
       })
@@ -392,6 +412,93 @@ function Auth() {
     }
   }
 
+  const handleForgotPassword = async () => {
+    setErrors({})
+    setIsForgotPasswordLoading(true)
+
+    try {
+      const res = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          type: "password-reset",
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        setErrors({ root: [body.error || "Failed to send reset code"] })
+        return
+      }
+
+      const data = encodeURIComponent(
+        JSON.stringify({
+          email,
+          step: "reset-password",
+          flow: "reset-password",
+        })
+      )
+
+      router.push(`${pathname}?data=${data}`)
+    } catch (error) {
+      console.error("Forgot password error", error)
+      setErrors({
+        root: ["Failed to connect to the server."],
+      })
+    } finally {
+      setIsForgotPasswordLoading(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    const result = resetPasswordSchema.safeParse({ password, rePassword })
+
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors)
+      return
+    }
+
+    setErrors({})
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          code: otp,
+          password,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrors({
+          root: [data.error || "Password reset failed"],
+        })
+        return
+      }
+
+      useAuthStore.getState().setUser(data.user)
+
+      router.replace("/account")
+    } catch (error) {
+      console.error("Password reset error:", error)
+      setErrors({
+        root: ["Failed to connect to the server."],
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleKeyDown =
     (handler: () => void, isInvalid: boolean) =>
     (e: KeyboardEvent<HTMLInputElement>) => {
@@ -399,6 +506,9 @@ function Auth() {
         handler()
       }
     }
+
+  const formatCountdown = (seconds: number) =>
+    `0:${seconds.toString().padStart(2, "0")}`
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-6 p-4">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -421,12 +531,14 @@ function Auth() {
             {step === "signup" && "Sign Up"}
             {step === "signin" && "Welcome Back"}
             {step === "verify-email" && "Verify your email"}
+            {step === "reset-password" && "Reset your password"}
           </CardTitle>
           <CardDescription>
             {step === "email" && "Contine with OAuth or Email"}
             {step === "signup" && "Create your account to continue"}
             {step === "signin" && "Sign in to your account to continue"}
             {step === "verify-email" && `We sent a code to ${email}`}
+            {step === "reset-password" && "Enter your new password"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -743,46 +855,58 @@ function Auth() {
                 {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
-              <Button
-                variant="link"
-                className="w-fit gap-1 self-start px-0 text-muted-foreground"
-                onClick={() => {
-                  setPassword("")
-                  setErrors({})
-                  const data = encodeURIComponent(
-                    JSON.stringify({ step: "email" })
-                  )
-                  router.push(`${pathname}?data=${data}`)
-                }}
-              >
-                <ChevronLeft className="size-4" />
-                <span>Back</span>
-              </Button>
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="link"
+                  className="w-fit gap-1 self-start px-0 text-muted-foreground"
+                  onClick={() => {
+                    setPassword("")
+                    setErrors({})
+                    const data = encodeURIComponent(
+                      JSON.stringify({ step: "email" })
+                    )
+                    router.push(`${pathname}?data=${data}`)
+                  }}
+                >
+                  <ChevronLeft className="size-4" />
+                  <span>Back</span>
+                </Button>
+                <Button
+                  variant="link"
+                  className="w-fit px-0 text-sm text-muted-foreground"
+                  onClick={handleForgotPassword}
+                  disabled={isLoading || isForgotPasswordLoading}
+                >
+                  {isForgotPasswordLoading ? (
+                    <div className="flex items-center">
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      <span>Sending...</span>
+                    </div>
+                  ) : (
+                    "Forgot password?"
+                  )}
+                </Button>
+              </div>
             </div>
-          ) : (
+          ) : step === "verify-email" ? (
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="verification-code">Verification Code</Label>
-                <InputOTP
-                  containerClassName="justify-center"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(value) => setOtp(value)}
-                  onComplete={handleVerifyOtp}
-                  disabled={isLoading || isResending}
-                >
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                  </InputOTPGroup>
-                  <InputOTPSeparator />
-                  <InputOTPGroup>
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3 size-5 text-muted-foreground" />
+                  <Input
+                    id="verification-code"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="123456"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+                    disabled={isLoading || isResending}
+                    className="pl-10 text-center tracking-[0.5em]"
+                  />
+                </div>
               </div>
               {errors.otp && (
                 <p className="text-center text-xs text-red-500">
@@ -805,7 +929,11 @@ function Auth() {
                     setOtp("")
                     setErrors({})
                     const data = encodeURIComponent(
-                      JSON.stringify({ email, name, username, step: "signup" })
+                      JSON.stringify(
+                        flow === "reset-password"
+                          ? { email, step: "signin" }
+                          : { email, name, username, step: "signup" }
+                      )
                     )
                     router.push(`${pathname}?data=${data}`)
                   }}
@@ -825,10 +953,159 @@ function Auth() {
                       Resending...
                     </>
                   ) : isCountingDown ? (
-                    `Resend code in ${countdown}s`
+                    `Resend code in ${formatCountdown(countdown)}`
                   ) : (
                     "Resend code"
                   )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="verification-code">Verification Code</Label>
+                <div className="relative flex items-center">
+                  <KeyRound className="absolute left-3 size-5 text-muted-foreground" />
+                  <Input
+                    id="verification-code"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="123456"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) =>
+                      setOtp(e.target.value.replace(/[^0-9]/g, ""))
+                    }
+                    disabled={isLoading}
+                    className="pl-10"
+                  />
+                  <div className="absolute right-3 flex items-center">
+                    <Button
+                      variant="link"
+                      className="h-auto w-fit self-end px-0 text-muted-foreground"
+                      onClick={handleResendCode}
+                      disabled={isCountingDown || isLoading || isResending}
+                    >
+                      {isResending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Resending...
+                        </>
+                      ) : isCountingDown ? (
+                        `Resend in ${formatCountdown(countdown)}`
+                      ) : (
+                        "Resend code"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">New Password</Label>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3 size-5 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    className="pr-10 pl-10"
+                    placeholder="new password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                  {password && (
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-5 text-muted-foreground" />
+                      ) : (
+                        <Eye className="size-5 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
+                </div>
+                {password &&
+                  resetPasswordSchema.shape.password.safeParse(password)
+                    .error && (
+                    <p className="text-xs text-muted-foreground">
+                      Password must be at least 8 characters.
+                    </p>
+                  )}
+                {errors.password && (
+                  <p className="text-xs text-red-500">{errors.password[0]}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="re-password">Confirm New Password</Label>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3 size-5 text-muted-foreground" />
+                  <Input
+                    id="re-password"
+                    type={showRePassword ? "text" : "password"}
+                    className="pr-10 pl-10"
+                    placeholder="confirm new password"
+                    value={rePassword}
+                    onChange={(e) => setRePassword(e.target.value)}
+                    onKeyDown={handleKeyDown(
+                      handleResetPassword,
+                      isResetPasswordInvalid
+                    )}
+                    disabled={isLoading}
+                  />
+                  {rePassword && (
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => setShowRePassword((prev) => !prev)}
+                      className="absolute right-3 disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      {showRePassword ? (
+                        <EyeOff className="size-5 text-muted-foreground" />
+                      ) : (
+                        <Eye className="size-5 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
+                </div>
+                {rePassword &&
+                  resetPasswordSchema
+                    .safeParse({ password, rePassword })
+                    .error?.flatten().fieldErrors.rePassword && (
+                    <p className="text-xs text-muted-foreground">
+                      Passwords must match.
+                    </p>
+                  )}
+                {errors.rePassword && (
+                  <p className="text-xs text-red-500">{errors.rePassword[0]}</p>
+                )}
+              </div>
+              <Button
+                className="w-full"
+                onClick={handleResetPassword}
+                disabled={isResetPasswordInvalid || isLoading}
+              >
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isLoading ? "Resetting..." : "Reset Password"}
+              </Button>
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="link"
+                  className="w-fit gap-1 self-start px-0 text-muted-foreground"
+                  onClick={() => {
+                    setOtp("")
+                    setErrors({})
+                    const data = encodeURIComponent(
+                      JSON.stringify({ email, step: "signin" })
+                    )
+                    router.push(`${pathname}?data=${data}`)
+                  }}
+                >
+                  <ChevronLeft className="size-4" />
+                  <span>Back</span>
                 </Button>
               </div>
             </div>

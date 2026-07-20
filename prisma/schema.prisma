@@ -41,8 +41,14 @@ model EmailVerification {
   id        String   @id @default(cuid())
   email     String
   code      String
+  type      EmailVerificationType
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+enum EmailVerificationType {
+  SIGNUP
+  RESET_PASSWORD
 }

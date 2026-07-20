@@ -26,6 +26,18 @@ export const signupSchema = z
     path: ["rePassword"],
   })
 
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, { message: "Password must be at least 8 characters." }),
+    rePassword: z.string(),
+  })
+  .refine((data) => data.password === data.rePassword, {
+    message: "Passwords do not match.",
+    path: ["rePassword"],
+  })
+
 export const otpSchema = z.object({
   otp: z.string().min(6, { message: "Verification code must be 6 digits." }),
 })
