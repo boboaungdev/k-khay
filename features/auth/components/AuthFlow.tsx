@@ -41,6 +41,14 @@ import {
   signupSchema,
 } from "@/features/auth/schemas/auth.schema"
 import { useAuthStore } from "@/features/auth/store/auth.store"
+import { checkEmailAction } from "@/features/auth/actions/check-email"
+import { checkUsernameAction } from "@/features/auth/actions/check-username"
+import { forgotPasswordAction } from "@/features/auth/actions/forgot-password"
+import { resendCodeAction } from "@/features/auth/actions/resend-code"
+import { resetPasswordAction } from "@/features/auth/actions/reset-password"
+import { signinAction } from "@/features/auth/actions/signin"
+import { signupAction } from "@/features/auth/actions/signup"
+import { verifyEmailAction } from "@/features/auth/actions/verify-email"
 
 type AuthStep =
   | "email"
@@ -154,11 +162,8 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setIsCheckingUsername(true)
     setUsernameAvailable(null)
     try {
-      const res = await fetch(
-        `/api/auth/check-username?username=${encodeURIComponent(usernameToCheck)}&email=${encodeURIComponent(email)}`
-      )
-      const { available } = await res.json()
-      setUsernameAvailable(available)
+      const data = await checkUsernameAction(usernameToCheck, email)
+      setUsernameAvailable(data.available)
     } catch (error) {
       console.error("Failed to check username", error)
       setUsernameAvailable(null) // Error state
@@ -191,22 +196,14 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setErrors({})
 
     try {
-      const res = await fetch("/api/auth/send-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          type: flow === "reset-password" ? "reset-password" : "signup",
-        }),
+      const result = await resendCodeAction({
+        email,
+        type: flow === "reset-password" ? "reset-password" : "signup",
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (!result.ok) {
         setErrors({
-          root: [data.error || "Failed to resend code"],
+          root: [result.error || "Failed to resend code"],
         })
 
         return
@@ -242,18 +239,7 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setIsLoading(true)
 
     try {
-      const res = await fetch(
-        `/api/auth/check-email?email=${encodeURIComponent(normalizedEmail)}`
-      )
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setErrors({
-          root: [data.error || "Failed to check email"],
-        })
-        return
-      }
+      const data = await checkEmailAction(normalizedEmail)
 
       const nextStep = data.exists ? "signin" : "signup"
 
@@ -290,31 +276,26 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setIsLoading(true)
 
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, username, password }),
+      const signupResult = await signupAction({
+        email,
+        name,
+        username,
+        password,
+        rePassword,
       })
 
-      if (!res.ok) {
-        const body = await res.json()
+      if (!signupResult.ok) {
         setIsLoading(false)
-        setErrors({ root: [body.error || "Signup failed"] })
+        setErrors({ root: [signupResult.error || "Signup failed"] })
         return
       }
 
-      const codeRes = await fetch("/api/auth/send-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          type: "signup",
-        }),
+      const codeResult = await resendCodeAction({
+        email,
+        type: "signup",
       })
 
-      if (!codeRes.ok) {
+      if (!codeResult.ok) {
         throw new Error("Failed sending code")
       }
 
@@ -364,21 +345,12 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
 
     setIsLoading(true)
     try {
-      const res = await fetch("/api/auth/verify-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          code: otp,
-          type: "signup",
-        }),
+      const data = await verifyEmailAction({
+        email,
+        code: otp,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (!data.ok) {
         setErrors({
           root: [data.error || "Verification failed"],
         })
@@ -412,20 +384,12 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setIsLoading(true)
 
     try {
-      const res = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+      const data = await signinAction({
+        email,
+        password,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (!data.ok) {
         setErrors({
           root: [data.error],
         })
@@ -451,24 +415,14 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setIsForgotPasswordLoading(true)
 
     try {
-      const res = await fetch("/api/auth/send-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          type: "reset-password",
-        }),
-      })
+      const data = await forgotPasswordAction(email)
 
-      if (!res.ok) {
-        const body = await res.json()
-        setErrors({ root: [body.error || "Failed to send reset code"] })
+      if (!data.ok) {
+        setErrors({ root: [data.error || "Failed to send reset code"] })
         return
       }
 
-      const data = encodeURIComponent(
+      const query = encodeURIComponent(
         JSON.stringify({
           email,
           step: "reset-password",
@@ -476,7 +430,7 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
         })
       )
 
-      router.push(`${pathname}?data=${data}`)
+      router.push(`${pathname}?data=${query}`)
     } catch (error) {
       console.error("Forgot password error", error)
       setErrors({
@@ -508,21 +462,14 @@ function Auth({ initialStep = "email", initialFlow = "signup" }: AuthProps) {
     setIsLoading(true)
 
     try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          code: otp,
-          password,
-        }),
+      const data = await resetPasswordAction({
+        email,
+        code: otp,
+        password,
+        rePassword,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (!data.ok) {
         setErrors({
           root: [data.error || "Password reset failed"],
         })

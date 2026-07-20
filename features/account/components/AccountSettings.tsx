@@ -40,6 +40,9 @@ import { Label } from "@/components/ui/label"
 import { useAuthStore } from "@/features/auth/store/auth.store"
 import { cn } from "@/lib/utils"
 import { ACCOUNT_CATEGORIES } from "@/features/account/constants/account.constants"
+import { checkAccountUsernameAction } from "@/features/account/actions/check-username"
+import { editProfileAction } from "@/features/account/actions/edit-profile"
+import { uploadAvatarAction } from "@/features/account/actions/upload-avatar"
 
 function ProfileDetails() {
   return <div>Manage your profile settings here.</div>
@@ -73,10 +76,7 @@ function UserInfoDetails() {
     const checkUsername = async () => {
       setIsCheckingUsername(true)
       try {
-        const res = await fetch(
-          `/api/account/check-username?username=${encodeURIComponent(username)}&email=${encodeURIComponent(user.email)}`
-        )
-        const data = await res.json()
+        const data = await checkAccountUsernameAction(username, user.email)
         setUsernameAvailable(data.available)
       } catch (error) {
         console.error("Failed to check username", error)
@@ -97,21 +97,13 @@ function UserInfoDetails() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch("/api/account/edit-profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: user?.id,
-          name,
-          username,
-        }),
+      const data = await editProfileAction({
+        id: user.id,
+        name,
+        username,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (!data.ok) {
         toast.error(data.error || "Failed to update profile.")
         return
       }
@@ -150,14 +142,9 @@ function UserInfoDetails() {
       formData.append("avatar", file)
       formData.append("id", user.id)
 
-      const res = await fetch("/api/account/upload-avatar", {
-        method: "PATCH",
-        body: formData,
-      })
+      const data = await uploadAvatarAction(formData)
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (!data.ok) {
         toast.error(data.error || "Upload failed")
         return
       }
