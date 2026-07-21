@@ -1,8 +1,10 @@
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
-  SMTP_EMAIL: process.env.SMTP_EMAIL,
-  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
-  SMTP_EMAIL_FROM: process.env.SMTP_EMAIL_FROM,
+
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_MAIL_FROM: process.env.SMTP_MAIL_FROM,
+
   R2_BUCKET: process.env.R2_BUCKET,
   R2_ENDPOINT: process.env.R2_ENDPOINT,
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,

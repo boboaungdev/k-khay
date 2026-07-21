@@ -1,7 +1,7 @@
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
 
-import { R2 } from "@/constatnts"
 import { r2 } from "@/lib/r2"
+import { env } from "@/lib/env"
 import {
   findAccountAvatar,
   findAccountUsernameOwner,
@@ -85,23 +85,23 @@ export async function saveAccountAvatar(formData: FormData) {
 
   await r2.send(
     new PutObjectCommand({
-      Bucket: R2.R2_BUCKET,
+      Bucket: env.R2_BUCKET,
       Key: key,
       Body: buffer,
       ContentType: avatar.type,
     })
   )
 
-  const avatarUrl = `${R2.R2_PUBLIC_URL}/${key}`
+  const avatarUrl = `${env.R2_PUBLIC_URL}/${key}`
   const user = await updateAccountAvatar(id, avatarUrl)
 
   if (oldAvatar) {
     try {
-      const oldKey = oldAvatar.replace(`${R2.R2_PUBLIC_URL}/`, "")
+      const oldKey = oldAvatar.replace(`${env.R2_PUBLIC_URL}/`, "")
 
       await r2.send(
         new DeleteObjectCommand({
-          Bucket: R2.R2_BUCKET,
+          Bucket: env.R2_BUCKET,
           Key: oldKey,
         })
       )
