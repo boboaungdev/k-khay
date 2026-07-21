@@ -23,7 +23,7 @@ export default function AuthCard({
   children,
 }: AuthCardProps) {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-6 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
       <div className="flex flex-col items-center gap-2 text-center">
         <Image
           src="/logo.png"

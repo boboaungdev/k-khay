@@ -1,3 +1,5 @@
+"use client"
+
 import "./globals.css"
 import { Toaster } from "sonner"
 import { Analytics } from "@vercel/analytics/next"
