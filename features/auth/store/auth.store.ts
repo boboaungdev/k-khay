@@ -14,9 +14,11 @@ export interface User {
 
 interface AuthState {
   user: User | null
+  email: string | null
   hydrated: boolean
 
   setUser: (user: User) => void
+  setEmail: (email: string | null) => void
   updateUser: (user: Partial<User>) => void
   logout: () => void
   setHydrated: () => void
@@ -26,12 +28,15 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
+      email: null,
       hydrated: false,
 
       setUser: (user) =>
         set({
           user,
         }),
+
+      setEmail: (email) => set({ email }),
 
       updateUser: (user) =>
         set((state) => ({
@@ -46,6 +51,7 @@ export const useAuthStore = create<AuthState>()(
       logout: () =>
         set({
           user: null,
+          email: null,
         }),
 
       setHydrated: () =>

@@ -1,5 +1,15 @@
-import AuthFlow from "@/features/auth/components/AuthFlow"
+"use client"
+
+import AuthCard from "@/features/auth/components/AuthCard"
+import { SignUpForm } from "@/features/auth/components/forms/SignUpForm"
 
 export default function SignUpPage() {
-  return <AuthFlow initialStep="signup" />
+  return (
+    <AuthCard
+      title="Sign Up"
+      description="Create your account to continue"
+    >
+      <SignUpForm />
+    </AuthCard>
+  )
 }

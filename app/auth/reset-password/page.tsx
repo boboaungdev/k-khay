@@ -1,5 +1,18 @@
-import AuthFlow from "@/features/auth/components/AuthFlow"
+"use client"
+
+import AuthCard from "@/features/auth/components/AuthCard"
+import ResetPasswordForm from "@/features/auth/components/forms/ResetPasswordForm"
+import { Suspense } from "react"
 
 export default function ResetPasswordPage() {
-  return <AuthFlow initialStep="reset-password" initialFlow="reset-password" />
+  return (
+    <Suspense>
+      <AuthCard
+        title="Reset your password"
+        description="Enter your new password"
+      >
+        <ResetPasswordForm />
+      </AuthCard>
+    </Suspense>
+  )
 }
