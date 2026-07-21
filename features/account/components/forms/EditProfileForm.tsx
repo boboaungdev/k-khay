@@ -122,12 +122,12 @@ export default function EditProfileForm() {
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger
         render={
-          <Button variant="ghost" className="flex items-center gap-2" />
+          <Button variant="ghost" className="flex items-center gap-2">
+            <Pencil className="h-4 w-4" />
+            <span>Edit</span>
+          </Button>
         }
-      >
-        <Pencil className="h-4 w-4" />
-        <span>Edit</span>
-      </SheetTrigger>
+      />
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Edit profile</SheetTitle>

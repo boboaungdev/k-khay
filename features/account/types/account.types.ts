@@ -1,6 +1,6 @@
 export type AccountCategoryId =
   | "home"
-  | "userinfo"
+  | "profile"
   | "security"
   | "devices"
   | "connections"

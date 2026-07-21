@@ -18,7 +18,7 @@ export type AccountCategory = {
 
 export const ACCOUNT_CATEGORIES: AccountCategory[] = [
   { id: "home", label: "Home", icon: Home },
-  { id: "userinfo", label: "User Info", icon: User },
+  { id: "profile", label: "Profile", icon: User },
   { id: "security", label: "Security", icon: Shield },
   { id: "devices", label: "Devices", icon: TbDevices },
   { id: "connections", label: "Connections", icon: Link },
